@@ -65,7 +65,7 @@ export default function HeroRow({ latest }) {
           sub={(
             <>
               <span>Mecânica <b>{num(latest?.power, 0)}</b> W</span>
-              <span>Média <b>{num(latest?.avg_power, 0)}</b> W</span>
+              <span>Média mec. <b>{num(latest?.avg_power, 0)}</b> W</span>
             </>
           )}
         />
