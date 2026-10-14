@@ -16,6 +16,10 @@ const CAPACITY_J = 512 * 3600
 const SOC0 = 0.92
 const CELLS = 16
 
+const ORIGIN_LAT = -3.119
+const ORIGIN_LON = -60.0217
+const M_PER_DEG = 111320
+
 const CELL_OFFSET = [4, -6, 9, -2, 1, -11, 7, 3, -4, 12, -8, 0, 5, -3, -9, 6].map((mv) => mv / 1000)
 const CELL_R = [12, 11.5, 13, 12.2, 11.8, 14, 12.5, 11.9, 12.1, 13.4, 12.8, 11.6, 12.3, 12.9, 13.8, 12].map((mo) => mo / 1000)
 
@@ -57,6 +61,22 @@ function noise(scale) {
   return (Math.random() + Math.random() + Math.random() - 1.5) * scale
 }
 
+function gpsFix(s, x, y) {
+  s.gpsErrX = s.gpsErrX * 0.97 + noise(0.73)
+  s.gpsErrY = s.gpsErrY * 0.97 + noise(0.73)
+  if (Math.random() < 0.004) s.sats = Math.min(12, Math.max(7, s.sats + (Math.random() < 0.5 ? -1 : 1)))
+  const ex = s.gpsErrX + noise(0.6)
+  const ey = s.gpsErrY + noise(0.6)
+  return {
+    lat: ORIGIN_LAT + (y + ey) / M_PER_DEG,
+    lon: ORIGIN_LON + (x + ex) / (M_PER_DEG * Math.cos((ORIGIN_LAT * Math.PI) / 180)),
+    gps_sats: s.sats,
+    gps_hdop: +(0.45 + 4.5 / s.sats + noise(0.04)).toFixed(2),
+    gps_speed: Math.max(0, s.v + noise(0.3)),
+    gps_fix: true,
+  }
+}
+
 function ocv(soc) {
   return 3.2 + 0.13 * soc + 0.25 * soc ** 20 - 0.5 * (1 - soc) ** 15
 }
@@ -73,6 +93,7 @@ function initialState() {
     eMech: 0, eElec: 0, avgPower: 0, peakI: 0,
     amb, tBat: amb + 4, tMotor: amb + 20, tCtrl: amb + 12,
     eta: 0.86, lap: 1,
+    gpsErrX: 0, gpsErrY: 0, sats: 10,
     session: `demo-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
   }
 }
@@ -172,6 +193,7 @@ function step(s) {
     autonomy: s.avgPower > 1 ? (soc * CAPACITY_J) / Math.max(pElec, s.avgPower) : 0,
     x,
     y,
+    ...gpsFix(s, x, y),
     battery_temp: s.tBat + noise(0.05),
     motor_temp: s.tMotor + noise(0.1),
     controller_temp: s.tCtrl + noise(0.1),

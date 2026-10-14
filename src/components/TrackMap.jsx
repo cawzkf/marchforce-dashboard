@@ -1,18 +1,14 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { has, kmh, num } from '../format'
+import { VHI, VLO, bearing, comma, distanceM, gpsStatus, hasFix, recentFix, speedColor, speedDelta } from '../gps'
+import GpsMap from './GpsMap'
 
 const W = 640
 const H = 360
 const PAD = 28
-const VLO = 12
-const VHI = 36
+const HEADING_BACK_M = 6
 
-function speedColor(ms) {
-  const r = Math.min(1, Math.max(0, ((ms ?? 0) * 3.6 - VLO) / (VHI - VLO)))
-  return `hsl(20, 100%, ${Math.round(18 + r * 42)}%)`
-}
-
-export default function TrackMap({ series, latest }) {
+export function TraceView({ series }) {
   const [hover, setHover] = useState(null)
   const outline = useRef({ session: null, pts: [], lastTs: -Infinity })
 
@@ -51,23 +47,7 @@ export default function TrackMap({ series, latest }) {
     return { placed, shape }
   }, [series])
 
-  const head = (
-    <header className="panel-head">
-      <h2>Pista</h2>
-      <span className="panel-tag">
-        Volta <b>{has(latest?.lap) ? latest.lap : '--'}</b> · {num(latest?.lap_distance, 0)} m na volta
-      </span>
-    </header>
-  )
-
-  if (!model) {
-    return (
-      <section className="panel track">
-        {head}
-        <p className="muted">Sem posição (x, y) na telemetria ainda.</p>
-      </section>
-    )
-  }
+  if (!model) return <p className="muted">Sem posição (x, y) na telemetria ainda.</p>
 
   const { placed, shape } = model
   const car = placed[placed.length - 1]
@@ -78,46 +58,155 @@ export default function TrackMap({ series, latest }) {
   const tipY = hp ? Math.max(hp.sy - 74, 6) : 0
 
   return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="track-svg" role="img" aria-label="Traçado da pista com posição atual">
+      <path d={shape} className="track-line" />
+      <path d={shape} className="track-center" />
+      {placed.map((p, i) => (
+        <circle
+          key={i}
+          cx={p.sx}
+          cy={p.sy}
+          r={hover === i ? 6 : 3.2}
+          fill={speedColor(p.velocity)}
+          stroke={hover === i ? '#fff' : 'none'}
+          onMouseEnter={() => setHover(i)}
+          onMouseLeave={() => setHover(null)}
+        />
+      ))}
+      <g transform={`translate(${car.sx}, ${car.sy})`}>
+        <circle r={12} className="track-car-glow" />
+        <polygon points="11,0 -7,-7 -7,7" className="track-car" transform={`rotate(${heading})`} />
+      </g>
+      <g className="track-hud" transform="translate(14, 22)">
+        <text>{num(kmh(car.velocity), 1)} km/h</text>
+        <text y="18" className="track-hud-sub">{(car.drive_phase ?? '').toUpperCase()}</text>
+      </g>
+      {hp && (
+        <g className="track-tip" transform={`translate(${tipX}, ${tipY})`}>
+          <rect width="146" height="66" rx="4" />
+          <text x="8" y="17">v {num(kmh(hp.velocity), 1)} km/h</text>
+          <text x="8" y="33">P {num(hp.electrical_power ?? hp.power, 0)} W</text>
+          <text x="8" y="49">SoC {num(hp.soc, 1, 100)} %</text>
+          <text x="82" y="49">Idc {num(hp.idc, 1)} A</text>
+        </g>
+      )}
+    </svg>
+  )
+}
+
+export function useGpsTrack(series, sessionKey) {
+  const outline = useRef({ session: null, pts: [], lastTs: -Infinity })
+
+  return useMemo(() => {
+    const fixes = (series || []).filter(hasFix)
+    if (fixes.length === 0) return null
+    const o = outline.current
+    const session = sessionKey ?? fixes[0].session_id
+    if (o.session !== session) {
+      o.session = session
+      o.pts = []
+      o.lastTs = -Infinity
+    }
+    fixes.forEach((p, i) => {
+      const ts = p.timestamp ?? p.t ?? i
+      if (ts <= o.lastTs) return
+      o.lastTs = ts
+      const last = o.pts[o.pts.length - 1]
+      if (!last || distanceM({ lat: last[0], lon: last[1] }, p) > 2) o.pts.push([p.lat, p.lon])
+    })
+    if (o.pts.length > 4000) o.pts = o.pts.slice(-4000)
+    const step = Math.max(1, Math.floor(fixes.length / 600))
+    const path = fixes
+      .filter((_, i) => i % step === 0 || i === fixes.length - 1)
+      .map((p) => ({ lat: Number(p.lat), lon: Number(p.lon), velocity: p.velocity }))
+    const last = fixes[fixes.length - 1]
+    let back = null
+    for (let i = fixes.length - 2; i >= 0; i -= 1) {
+      if (distanceM(fixes[i], last) >= HEADING_BACK_M) {
+        back = fixes[i]
+        break
+      }
+    }
+    const car = { lat: Number(last.lat), lon: Number(last.lon), heading: back ? bearing(back, last) : 0 }
+    return { path, outline: o.pts.slice(), car }
+  }, [series, sessionKey])
+}
+
+export default function TrackMap({ series, latest }) {
+  const [choice, setChoice] = useState(null)
+  const [tileFail, setTileFail] = useState(false)
+  const [follow, setFollow] = useState(false)
+  const gpsOk = recentFix(series)
+  const gps = useGpsTrack(gpsOk ? series : null)
+  const status = gpsStatus(latest)
+  const delta = speedDelta(latest)
+  const onTileFail = useCallback(() => setTileFail(true), [])
+
+  const wanted = choice ?? (gpsOk ? 'map' : 'trace')
+  const showMap = wanted === 'map' && gpsOk && gps && !tileFail
+  let note = null
+  if (wanted === 'map' && tileFail) note = 'Mapa indisponível sem conexão com o servidor de mapas. Exibindo o traçado local.'
+  else if (wanted === 'map' && !gpsOk && choice === 'map') note = 'Sem fix de GPS nas amostras recentes. Exibindo o traçado local.'
+
+  const pick = (mode) => {
+    if (mode === 'map') setTileFail(false)
+    setChoice(mode)
+  }
+
+  return (
     <section className="panel track">
-      {head}
-      <svg viewBox={`0 0 ${W} ${H}`} className="track-svg" role="img" aria-label="Traçado da pista com posição atual">
-        <path d={shape} className="track-line" />
-        <path d={shape} className="track-center" />
-        {placed.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.sx}
-            cy={p.sy}
-            r={hover === i ? 6 : 3.2}
-            fill={speedColor(p.velocity)}
-            stroke={hover === i ? '#fff' : 'none'}
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover(null)}
-          />
-        ))}
-        <g transform={`translate(${car.sx}, ${car.sy})`}>
-          <circle r={12} className="track-car-glow" />
-          <polygon points="11,0 -7,-7 -7,7" className="track-car" transform={`rotate(${heading})`} />
-        </g>
-        <g className="track-hud" transform="translate(14, 22)">
-          <text>{num(kmh(car.velocity), 1)} km/h</text>
-          <text y="18" className="track-hud-sub">{(car.drive_phase ?? '').toUpperCase()}</text>
-        </g>
-        {hp && (
-          <g className="track-tip" transform={`translate(${tipX}, ${tipY})`}>
-            <rect width="146" height="66" rx="4" />
-            <text x="8" y="17">v {num(kmh(hp.velocity), 1)} km/h</text>
-            <text x="8" y="33">P {num(hp.electrical_power ?? hp.power, 0)} W</text>
-            <text x="8" y="49">SoC {num(hp.soc, 1, 100)} %</text>
-            <text x="82" y="49">Idc {num(hp.idc, 1)} A</text>
-          </g>
-        )}
-      </svg>
+      <header className="panel-head track-head">
+        <h2>Pista</h2>
+        <div className="seg" role="group" aria-label="Visualização da pista">
+          <button
+            type="button"
+            className={showMap ? 'active' : ''}
+            onClick={() => pick('map')}
+            disabled={!gpsOk}
+            title={gpsOk ? 'Mapa real com posição GPS' : 'Sem fix de GPS nas amostras recentes'}
+          >
+            Mapa
+          </button>
+          <button type="button" className={!showMap ? 'active' : ''} onClick={() => pick('trace')}>Traçado</button>
+        </div>
+        <span className={`gps-chip gps-${status.level}`} title="Satélites e diluição horizontal de precisão (HDOP)">
+          <i aria-hidden="true" />
+          {status.text}
+        </span>
+        <span className="panel-tag">
+          Volta <b>{has(latest?.lap) ? latest.lap : '--'}</b> · {num(latest?.lap_distance, 0)} m na volta
+        </span>
+      </header>
+
+      {showMap ? (
+        <GpsMap path={gps.path} outline={gps.outline} car={gps.car} follow={follow} onTileFail={onTileFail}>
+          <div className="gps-hud">
+            <span className="gps-hud-speed">{num(kmh(latest?.velocity), 1)} km/h</span>
+            <span className="gps-hud-sub">{(latest?.drive_phase ?? '').toUpperCase()}</span>
+          </div>
+          <button type="button" className={`gps-follow ${follow ? 'on' : ''}`} onClick={() => setFollow((f) => !f)} aria-pressed={follow}
+            title={follow ? 'Centralizado no carro. Clique para enquadrar o trajeto inteiro.' : 'Enquadrando o trajeto inteiro. Clique para seguir o carro.'}
+          >
+            {follow ? 'Seguindo o carro' : 'Trajeto inteiro'}
+          </button>
+        </GpsMap>
+      ) : (
+        <TraceView series={series} />
+      )}
+      {note && <p className="track-note">{note}</p>}
+
       <div className="track-legend">
         <span>{VLO} km/h</span>
         <i className="track-ramp" />
         <span>{VHI} km/h</span>
-        <span className="muted">Rastro recente, cor = velocidade. Passe o mouse num ponto.</span>
+        <span className="muted">
+          {showMap ? 'Rastro GPS recente, cor = velocidade.' : 'Rastro recente, cor = velocidade. Passe o mouse num ponto.'}
+        </span>
+        {gpsOk && (
+          <span className="gps-delta" title="Velocidade GPS menos velocidade da roda (sensor Hall)">
+            v GPS <b>{comma(kmh(latest?.gps_speed), 1)}</b> km/h · Δ roda <b>{delta === null ? '--' : `${delta >= 0 ? '+' : ''}${comma(delta, 1)}`}</b> km/h
+          </span>
+        )}
       </div>
     </section>
   )
