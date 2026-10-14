@@ -11,9 +11,9 @@ export default function Endpoints() {
   const host = ep.host || window.location.hostname
 
   const items = [
-    ['OPC UA', `opc.tcp://${host}:${ep.opcua_port ?? 4840}`],
+    ['Gêmeo digital (AAS Tipo 2, OPC UA)', `opc.tcp://${host}:${ep.opcua_port ?? 4840}`],
     ['MQTT', `${host}:${ep.mqtt_port ?? 1883}`],
-    ['BaSyx AAS', `http://${host}:${ep.basyx_port ?? 8081}`],
+    ['API REST', `http://${host}:${ep.api_port ?? 8000}`],
   ]
 
   return (
