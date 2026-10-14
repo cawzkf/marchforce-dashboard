@@ -25,8 +25,8 @@ export default function SessionHistory() {
 
   return (
     <div className="session-history">
-      <aside className="session-list">
-        <h3>Sessões de teste</h3>
+      <aside className="session-list panel">
+        <h2 className="panel-title">Sessões de teste</h2>
         {sessions.length === 0 && <p className="muted">Nenhuma sessão registrada ainda.</p>}
         <ul>
           {sessions.map((s) => (
@@ -48,16 +48,16 @@ export default function SessionHistory() {
           <p className="muted">Selecione uma sessão para ver o histórico.</p>
         ) : (
           <>
-            <h3>{selected}</h3>
+            <h2 className="panel-title mono">{selected}</h2>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={history}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2c2c2c" />
-                <XAxis dataKey="t" stroke="#9a9a9a" fontSize={11}
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
+                <XAxis dataKey="t" stroke="#8c8c8c" fontSize={11}
                        tickFormatter={(t) => new Date(t).toLocaleTimeString('pt-BR', { hour12: false })} />
-                <YAxis stroke="#9a9a9a" fontSize={11} />
-                <Tooltip contentStyle={{ background: '#161616', border: '1px solid #2c2c2c' }} />
-                <Line type="monotone" dataKey="power" stroke="#ff6a00" dot={false} name="Potência (W)" />
-                <Line type="monotone" dataKey="velocity" stroke="#ffffff" dot={false} name="Velocidade (m/s)" />
+                <YAxis stroke="#8c8c8c" fontSize={11} />
+                <Tooltip contentStyle={{ background: '#0d0d0d', border: '1px solid #ff5400', borderRadius: 4 }} />
+                <Line type="monotone" dataKey="power" stroke="#ff5400" dot={false} name="Potência (W)" />
+                <Line type="monotone" dataKey="velocity" stroke="#f2f2f2" dot={false} name="Velocidade (m/s)" />
               </LineChart>
             </ResponsiveContainer>
           </>

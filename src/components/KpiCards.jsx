@@ -1,33 +1,28 @@
-function fmt(v, digits = 2) {
-  return v === null || v === undefined ? '—' : Number(v).toFixed(digits)
-}
+import { num } from '../format'
 
 const CARDS = [
-  { key: 'velocity', label: 'Velocidade', unit: 'm/s' },
-  { key: 'power', label: 'Potência (Pdc)', unit: 'W' },
-  { key: 'vdc', label: 'Tensão DC', unit: 'V' },
-  { key: 'idc', label: 'Corrente DC', unit: 'A' },
-  { key: 'soc', label: 'SoC', unit: '%', scale: 100, digits: 1 },
-  { key: 'energy', label: 'Energia acumulada', unit: 'J', digits: 0 },
-  { key: 'distance', label: 'Distância', unit: 'm', digits: 1 },
-  { key: 'specific_consumption', label: 'Consumo específico', unit: 'Wh/m', digits: 4 },
-  { key: 'autonomy', label: 'Autonomia estimada', unit: 's', digits: 0 },
+  { key: 'distance', label: 'Distância', unit: 'km', scale: 1 / 1000, digits: 3 },
+  { key: 'lap_distance', label: 'Na volta', unit: 'm', digits: 0 },
+  { key: 'energy', label: 'Energia mecânica', unit: 'kJ', scale: 1 / 1000, digits: 2 },
+  { key: 'avg_power', label: 'Potência média', unit: 'W', digits: 0 },
+  { key: 'specific_consumption', label: 'Consumo específico', unit: 'Wh/km', scale: 1000, digits: 2 },
+  { key: 'autonomy', label: 'Autonomia', unit: 'min', scale: 1 / 60, digits: 0 },
+  { key: 'acceleration', label: 'Aceleração', unit: 'm/s²', digits: 2 },
+  { key: 'vdc', label: 'Tensão DC', unit: 'V', digits: 2 },
 ]
 
 export default function KpiCards({ latest }) {
   return (
-    <section className="kpis">
-      {CARDS.map((c) => {
-        const raw = latest?.[c.key]
-        const value = raw !== undefined && raw !== null ? raw * (c.scale ?? 1) : null
-        return (
-          <div className="kpi" key={c.key}>
-            <span className="kpi-label">{c.label}</span>
-            <span className="kpi-value">{fmt(value, c.digits ?? 2)}</span>
-            <span className="kpi-unit">{c.unit}</span>
-          </div>
-        )
-      })}
+    <section className="kpis" aria-label="Indicadores">
+      {CARDS.map((c) => (
+        <div className="kpi" key={c.key}>
+          <span className="kpi-label">{c.label}</span>
+          <span className="kpi-value">
+            {num(latest?.[c.key], c.digits ?? 2, c.scale ?? 1)}
+            <small>{c.unit}</small>
+          </span>
+        </div>
+      ))}
     </section>
   )
 }

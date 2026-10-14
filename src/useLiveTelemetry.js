@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const WINDOW = 120
+const WINDOW = 600
 
 export function useLiveTelemetry() {
   const [latest, setLatest] = useState(null)

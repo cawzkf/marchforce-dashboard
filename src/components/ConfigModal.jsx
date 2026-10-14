@@ -11,8 +11,8 @@ const VEHICLE_FIELDS = [
 ]
 
 const ALERT_FIELDS = [
-  ['soc_warning', 'SoC alerta (0–1)'],
-  ['soc_critical', 'SoC crítico (0–1)'],
+  ['soc_warning', 'SoC alerta (0 a 1)'],
+  ['soc_critical', 'SoC crítico (0 a 1)'],
   ['idc_warning', 'Idc alerta (A)'],
   ['idc_critical', 'Idc crítico (A)'],
   ['speed_warning', 'Velocidade alerta (m/s)'],

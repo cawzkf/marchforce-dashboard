@@ -2,6 +2,7 @@
   "name": "marchforce-dashboard",
   "private": true,
   "version": "0.1.0",
+  "description": "MachForce telemetry dashboard",
   "type": "module",
   "scripts": {
     "dev": "vite",

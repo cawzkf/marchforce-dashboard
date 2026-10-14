@@ -1,22 +1,39 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { has, kmh, num } from '../format'
 
 const W = 640
-const H = 380
-const PAD = 30
+const H = 360
+const PAD = 28
+const VLO = 12
+const VHI = 36
 
-function speedColor(v, vmax) {
-  const r = vmax ? Math.min(1, v / vmax) : 0
-  return `hsl(28, ${Math.round(r * 95)}%, ${Math.round(45 + r * 10)}%)`
+function speedColor(ms) {
+  const r = Math.min(1, Math.max(0, ((ms ?? 0) * 3.6 - VLO) / (VHI - VLO)))
+  return `hsl(20, 100%, ${Math.round(18 + r * 42)}%)`
 }
 
-export default function TrackMap({ series }) {
+export default function TrackMap({ series, latest }) {
   const [hover, setHover] = useState(null)
+  const outline = useRef({ session: null, pts: [], lastTs: -Infinity })
 
   const model = useMemo(() => {
     const pts = (series || []).filter((p) => p.x != null && p.y != null)
     if (pts.length === 0) return null
-    const xs = pts.map((p) => p.x)
-    const ys = pts.map((p) => p.y)
+    const o = outline.current
+    if (o.session !== pts[0].session_id) {
+      o.session = pts[0].session_id
+      o.pts = []
+      o.lastTs = -Infinity
+    }
+    pts.forEach((p) => {
+      if (p.timestamp <= o.lastTs) return
+      o.lastTs = p.timestamp
+      const lastPt = o.pts[o.pts.length - 1]
+      if (!lastPt || Math.hypot(p.x - lastPt[0], p.y - lastPt[1]) > 2) o.pts.push([p.x, p.y])
+    })
+    if (o.pts.length > 4000) o.pts = o.pts.slice(-4000)
+    const xs = o.pts.map((p) => p[0])
+    const ys = o.pts.map((p) => p[1])
     const minX = Math.min(...xs)
     const minY = Math.min(...ys)
     const spanX = Math.max(...xs) - minX || 1
@@ -24,69 +41,84 @@ export default function TrackMap({ series }) {
     const s = Math.min((W - 2 * PAD) / spanX, (H - 2 * PAD) / spanY)
     const ox = (W - s * spanX) / 2
     const oy = (H - s * spanY) / 2
-    const vmax = Math.max(...pts.map((p) => p.velocity ?? 0), 0.001)
-    const placed = pts.map((p) => ({
-      ...p,
-      sx: ox + (p.x - minX) * s,
-      sy: H - (oy + (p.y - minY) * s),
-    }))
-    return { placed, vmax }
+    const tx = (x) => ox + (x - minX) * s
+    const ty = (y) => H - (oy + (y - minY) * s)
+    const step = Math.max(1, Math.floor(pts.length / 240))
+    const placed = pts
+      .filter((_, i) => i % step === 0 || i === pts.length - 1)
+      .map((p) => ({ ...p, sx: tx(p.x), sy: ty(p.y) }))
+    const shape = o.pts.map(([x, y], i) => `${i ? 'L' : 'M'}${tx(x).toFixed(1)},${ty(y).toFixed(1)}`).join(' ')
+    return { placed, shape }
   }, [series])
+
+  const head = (
+    <header className="panel-head">
+      <h2>Pista</h2>
+      <span className="panel-tag">
+        Volta <b>{has(latest?.lap) ? latest.lap : '--'}</b> · {num(latest?.lap_distance, 0)} m na volta
+      </span>
+    </header>
+  )
 
   if (!model) {
     return (
-      <section className="track">
-        <h3>Pista</h3>
+      <section className="panel track">
+        {head}
         <p className="muted">Sem posição (x, y) na telemetria ainda.</p>
       </section>
     )
   }
 
-  const { placed, vmax } = model
-  const path = placed.map((p, i) => `${i ? 'L' : 'M'}${p.sx.toFixed(1)},${p.sy.toFixed(1)}`).join(' ')
+  const { placed, shape } = model
   const car = placed[placed.length - 1]
   const prev = placed.length > 1 ? placed[placed.length - 2] : car
   const heading = (Math.atan2(car.sy - prev.sy, car.sx - prev.sx) * 180) / Math.PI
   const hp = hover != null ? placed[hover] : null
-  const tipX = hp ? Math.min(hp.sx + 10, W - 150) : 0
-  const tipY = hp ? Math.max(hp.sy - 70, 6) : 0
+  const tipX = hp ? Math.min(hp.sx + 10, W - 156) : 0
+  const tipY = hp ? Math.max(hp.sy - 74, 6) : 0
 
   return (
-    <section className="track">
-      <h3>Pista — telemetria por ponto</h3>
-      <svg viewBox={`0 0 ${W} ${H}`} className="track-svg">
-        <path d={path} className="track-line" />
+    <section className="panel track">
+      {head}
+      <svg viewBox={`0 0 ${W} ${H}`} className="track-svg" role="img" aria-label="Traçado da pista com posição atual">
+        <path d={shape} className="track-line" />
+        <path d={shape} className="track-center" />
         {placed.map((p, i) => (
           <circle
             key={i}
             cx={p.sx}
             cy={p.sy}
-            r={hover === i ? 5.5 : 3}
-            fill={speedColor(p.velocity ?? 0, vmax)}
+            r={hover === i ? 6 : 3.2}
+            fill={speedColor(p.velocity)}
             stroke={hover === i ? '#fff' : 'none'}
             onMouseEnter={() => setHover(i)}
             onMouseLeave={() => setHover(null)}
           />
         ))}
         <g transform={`translate(${car.sx}, ${car.sy})`}>
-          <circle r={9} className="track-car-glow" />
-          <polygon points="11,0 -7,-7 -7,7" className="track-car"
-                   transform={`rotate(${heading})`} />
-          <text x={14} y={-10} className="track-hud">
-            {Number(car.velocity).toFixed(1)} m/s
-          </text>
+          <circle r={12} className="track-car-glow" />
+          <polygon points="11,0 -7,-7 -7,7" className="track-car" transform={`rotate(${heading})`} />
+        </g>
+        <g className="track-hud" transform="translate(14, 22)">
+          <text>{num(kmh(car.velocity), 1)} km/h</text>
+          <text y="18" className="track-hud-sub">{(car.drive_phase ?? '').toUpperCase()}</text>
         </g>
         {hp && (
           <g className="track-tip" transform={`translate(${tipX}, ${tipY})`}>
-            <rect width="140" height="64" rx="6" />
-            <text x="8" y="16">v: {Number(hp.velocity).toFixed(1)} m/s</text>
-            <text x="8" y="31">P: {Number(hp.power).toFixed(0)} W</text>
-            <text x="8" y="46">SoC: {(hp.soc * 100).toFixed(1)}%</text>
-            <text x="76" y="46">Idc: {Number(hp.idc).toFixed(0)} A</text>
+            <rect width="146" height="66" rx="4" />
+            <text x="8" y="17">v {num(kmh(hp.velocity), 1)} km/h</text>
+            <text x="8" y="33">P {num(hp.electrical_power ?? hp.power, 0)} W</text>
+            <text x="8" y="49">SoC {num(hp.soc, 1, 100)} %</text>
+            <text x="82" y="49">Idc {num(hp.idc, 1)} A</text>
           </g>
         )}
       </svg>
-      <p className="muted">Cor = velocidade (verde→vermelho). Passe o mouse num ponto pra ver a telemetria.</p>
+      <div className="track-legend">
+        <span>{VLO} km/h</span>
+        <i className="track-ramp" />
+        <span>{VHI} km/h</span>
+        <span className="muted">Rastro recente, cor = velocidade. Passe o mouse num ponto.</span>
+      </div>
     </section>
   )
 }
