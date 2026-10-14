@@ -68,8 +68,8 @@ function gpsFix(s, x, y) {
   const ex = s.gpsErrX + noise(0.6)
   const ey = s.gpsErrY + noise(0.6)
   return {
-    lat: ORIGIN_LAT + (y + ey) / M_PER_DEG,
-    lon: ORIGIN_LON + (x + ex) / (M_PER_DEG * Math.cos((ORIGIN_LAT * Math.PI) / 180)),
+    lat: s.originLat + (y + ey) / M_PER_DEG,
+    lon: s.originLon + (x + ex) / (M_PER_DEG * Math.cos((s.originLat * Math.PI) / 180)),
     gps_sats: s.sats,
     gps_hdop: +(0.45 + 4.5 / s.sats + noise(0.04)).toFixed(2),
     gps_speed: Math.max(0, s.v + noise(0.3)),
@@ -94,6 +94,7 @@ function initialState() {
     amb, tBat: amb + 4, tMotor: amb + 20, tCtrl: amb + 12,
     eta: 0.86, lap: 1,
     gpsErrX: 0, gpsErrY: 0, sats: 10,
+    originLat: ORIGIN_LAT, originLon: ORIGIN_LON,
     session: `demo-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
   }
 }
@@ -226,6 +227,19 @@ export function useDemoTelemetry(enabled) {
     st.current = initialState()
     setSeries([])
     setLatest(null)
+    let cancelled = false
+    if (window.isSecureContext && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return
+          st.current.originLat = pos.coords.latitude
+          st.current.originLon = pos.coords.longitude
+          setSeries([])
+        },
+        () => {},
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
+      )
+    }
     const id = setInterval(() => {
       const sample = step(st.current)
       setLatest(sample)
@@ -234,7 +248,10 @@ export function useDemoTelemetry(enabled) {
         return next.length > WINDOW ? next.slice(next.length - WINDOW) : next
       })
     }, DT * 1000)
-    return () => clearInterval(id)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
   }, [enabled])
 
   return { latest, series, connected: enabled }
