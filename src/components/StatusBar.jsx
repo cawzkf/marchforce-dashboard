@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PHASES, clock, has } from '../format'
+import { gpsStatus } from '../gps'
 
 const STALE_MS = 3000
 
@@ -22,6 +23,7 @@ export default function StatusBar({ demo, onToggleDemo, connected, latest, elaps
   const linkText = { demo: 'DEMO', off: 'OFFLINE', stale: 'SEM DADOS', live: 'AO VIVO' }[link]
   const phase = latest?.drive_phase
   const phaseInfo = PHASES[phase]
+  const gps = gpsStatus(latest)
 
   return (
     <header className="topbar">
@@ -51,6 +53,13 @@ export default function StatusBar({ demo, onToggleDemo, connected, latest, elaps
         <div className="readout">
           <span className="readout-label">Volta</span>
           <span className="readout-value">{has(latest?.lap) ? String(latest.lap).padStart(2, '0') : '--'}</span>
+        </div>
+        <div className={`readout gps-readout gps-${gps.level}`} title="Satélites e diluição horizontal de precisão (HDOP)">
+          <span className="readout-label">GPS</span>
+          <span className="readout-value">
+            <i aria-hidden="true" />
+            {gps.text.replace(/^GPS ?/, '') || '--'}
+          </span>
         </div>
         <div className="readout">
           <span className="readout-label">Tempo</span>

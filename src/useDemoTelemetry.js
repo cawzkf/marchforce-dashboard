@@ -16,6 +16,31 @@ const CAPACITY_J = 512 * 3600
 const SOC0 = 0.92
 const CELLS = 16
 
+const ORIGIN_LAT = -3.119
+const ORIGIN_LON = -60.0217
+const ORIGIN_KEY = 'mf-demo-origin'
+const ORIGIN_EVENT = 'mf-demo-origin'
+
+function storedOrigin() {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(ORIGIN_KEY) || 'null')
+    return v && Number.isFinite(v.lat) && Number.isFinite(v.lon) ? v : null
+  } catch {
+    return null
+  }
+}
+
+export function setDemoOrigin(lat, lon) {
+  try { window.localStorage.setItem(ORIGIN_KEY, JSON.stringify({ lat, lon })) } catch (e) { void e }
+  window.dispatchEvent(new CustomEvent(ORIGIN_EVENT, { detail: { lat, lon, source: 'manual' } }))
+}
+
+export function clearDemoOrigin() {
+  try { window.localStorage.removeItem(ORIGIN_KEY) } catch (e) { void e }
+  window.dispatchEvent(new CustomEvent(ORIGIN_EVENT, { detail: { source: 'aparelho' } }))
+}
+const M_PER_DEG = 111320
+
 const CELL_OFFSET = [4, -6, 9, -2, 1, -11, 7, 3, -4, 12, -8, 0, 5, -3, -9, 6].map((mv) => mv / 1000)
 const CELL_R = [12, 11.5, 13, 12.2, 11.8, 14, 12.5, 11.9, 12.1, 13.4, 12.8, 11.6, 12.3, 12.9, 13.8, 12].map((mo) => mo / 1000)
 
@@ -57,6 +82,24 @@ function noise(scale) {
   return (Math.random() + Math.random() + Math.random() - 1.5) * scale
 }
 
+function gpsFix(s, x, y) {
+  s.gpsErrX = s.gpsErrX * 0.97 + noise(0.73)
+  s.gpsErrY = s.gpsErrY * 0.97 + noise(0.73)
+  if (Math.random() < 0.004) s.sats = Math.min(12, Math.max(7, s.sats + (Math.random() < 0.5 ? -1 : 1)))
+  const ex = s.gpsErrX + noise(0.6)
+  const ey = s.gpsErrY + noise(0.6)
+  return {
+    lat: s.originLat + (y + ey) / M_PER_DEG,
+    lon: s.originLon + (x + ex) / (M_PER_DEG * Math.cos((s.originLat * Math.PI) / 180)),
+    gps_sats: s.sats,
+    gps_hdop: +(0.45 + 4.5 / s.sats + noise(0.04)).toFixed(2),
+    gps_speed: Math.max(0, s.v + noise(0.3)),
+    gps_fix: true,
+    demo_origin: s.originSource,
+    demo_origin_accuracy: s.originAccuracy,
+  }
+}
+
 function ocv(soc) {
   return 3.2 + 0.13 * soc + 0.25 * soc ** 20 - 0.5 * (1 - soc) ** 15
 }
@@ -73,6 +116,8 @@ function initialState() {
     eMech: 0, eElec: 0, avgPower: 0, peakI: 0,
     amb, tBat: amb + 4, tMotor: amb + 20, tCtrl: amb + 12,
     eta: 0.86, lap: 1,
+    gpsErrX: 0, gpsErrY: 0, sats: 10,
+    originLat: ORIGIN_LAT, originLon: ORIGIN_LON, originSource: 'padrão', originAccuracy: null,
     session: `demo-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
   }
 }
@@ -172,6 +217,7 @@ function step(s) {
     autonomy: s.avgPower > 1 ? (soc * CAPACITY_J) / Math.max(pElec, s.avgPower) : 0,
     x,
     y,
+    ...gpsFix(s, x, y),
     battery_temp: s.tBat + noise(0.05),
     motor_temp: s.tMotor + noise(0.1),
     controller_temp: s.tCtrl + noise(0.1),
@@ -204,6 +250,27 @@ export function useDemoTelemetry(enabled) {
     st.current = initialState()
     setSeries([])
     setLatest(null)
+    let cancelled = false
+    const place = (lat, lon, source, accuracy = null) => {
+      Object.assign(st.current, { originLat: lat, originLon: lon, originSource: source, originAccuracy: accuracy })
+      setSeries([])
+    }
+    const fromDevice = () => {
+      if (!window.isSecureContext || !navigator.geolocation) return
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { if (!cancelled && !storedOrigin()) place(pos.coords.latitude, pos.coords.longitude, 'aparelho', pos.coords.accuracy) },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      )
+    }
+    const manual = storedOrigin()
+    if (manual) place(manual.lat, manual.lon, 'manual')
+    else fromDevice()
+    const onOrigin = (e) => {
+      if (e.detail.source === 'manual') place(e.detail.lat, e.detail.lon, 'manual')
+      else { place(ORIGIN_LAT, ORIGIN_LON, 'padrão'); fromDevice() }
+    }
+    window.addEventListener(ORIGIN_EVENT, onOrigin)
     const id = setInterval(() => {
       const sample = step(st.current)
       setLatest(sample)
@@ -212,7 +279,11 @@ export function useDemoTelemetry(enabled) {
         return next.length > WINDOW ? next.slice(next.length - WINDOW) : next
       })
     }, DT * 1000)
-    return () => clearInterval(id)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      window.removeEventListener(ORIGIN_EVENT, onOrigin)
+    }
   }, [enabled])
 
   return { latest, series, connected: enabled }
