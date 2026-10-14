@@ -18,6 +18,27 @@ const CELLS = 16
 
 const ORIGIN_LAT = -3.119
 const ORIGIN_LON = -60.0217
+const ORIGIN_KEY = 'mf-demo-origin'
+const ORIGIN_EVENT = 'mf-demo-origin'
+
+function storedOrigin() {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(ORIGIN_KEY) || 'null')
+    return v && Number.isFinite(v.lat) && Number.isFinite(v.lon) ? v : null
+  } catch {
+    return null
+  }
+}
+
+export function setDemoOrigin(lat, lon) {
+  try { window.localStorage.setItem(ORIGIN_KEY, JSON.stringify({ lat, lon })) } catch (e) { void e }
+  window.dispatchEvent(new CustomEvent(ORIGIN_EVENT, { detail: { lat, lon, source: 'manual' } }))
+}
+
+export function clearDemoOrigin() {
+  try { window.localStorage.removeItem(ORIGIN_KEY) } catch (e) { void e }
+  window.dispatchEvent(new CustomEvent(ORIGIN_EVENT, { detail: { source: 'aparelho' } }))
+}
 const M_PER_DEG = 111320
 
 const CELL_OFFSET = [4, -6, 9, -2, 1, -11, 7, 3, -4, 12, -8, 0, 5, -3, -9, 6].map((mv) => mv / 1000)
@@ -74,6 +95,8 @@ function gpsFix(s, x, y) {
     gps_hdop: +(0.45 + 4.5 / s.sats + noise(0.04)).toFixed(2),
     gps_speed: Math.max(0, s.v + noise(0.3)),
     gps_fix: true,
+    demo_origin: s.originSource,
+    demo_origin_accuracy: s.originAccuracy,
   }
 }
 
@@ -94,7 +117,7 @@ function initialState() {
     amb, tBat: amb + 4, tMotor: amb + 20, tCtrl: amb + 12,
     eta: 0.86, lap: 1,
     gpsErrX: 0, gpsErrY: 0, sats: 10,
-    originLat: ORIGIN_LAT, originLon: ORIGIN_LON,
+    originLat: ORIGIN_LAT, originLon: ORIGIN_LON, originSource: 'padrão', originAccuracy: null,
     session: `demo-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
   }
 }
@@ -228,18 +251,26 @@ export function useDemoTelemetry(enabled) {
     setSeries([])
     setLatest(null)
     let cancelled = false
-    if (window.isSecureContext && navigator.geolocation) {
+    const place = (lat, lon, source, accuracy = null) => {
+      Object.assign(st.current, { originLat: lat, originLon: lon, originSource: source, originAccuracy: accuracy })
+      setSeries([])
+    }
+    const fromDevice = () => {
+      if (!window.isSecureContext || !navigator.geolocation) return
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (cancelled) return
-          st.current.originLat = pos.coords.latitude
-          st.current.originLon = pos.coords.longitude
-          setSeries([])
-        },
+        (pos) => { if (!cancelled && !storedOrigin()) place(pos.coords.latitude, pos.coords.longitude, 'aparelho', pos.coords.accuracy) },
         () => {},
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       )
     }
+    const manual = storedOrigin()
+    if (manual) place(manual.lat, manual.lon, 'manual')
+    else fromDevice()
+    const onOrigin = (e) => {
+      if (e.detail.source === 'manual') place(e.detail.lat, e.detail.lon, 'manual')
+      else { place(ORIGIN_LAT, ORIGIN_LON, 'padrão'); fromDevice() }
+    }
+    window.addEventListener(ORIGIN_EVENT, onOrigin)
     const id = setInterval(() => {
       const sample = step(st.current)
       setLatest(sample)
@@ -251,6 +282,7 @@ export function useDemoTelemetry(enabled) {
     return () => {
       cancelled = true
       clearInterval(id)
+      window.removeEventListener(ORIGIN_EVENT, onOrigin)
     }
   }, [enabled])
 

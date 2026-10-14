@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { speedColor, VHI, VLO } from '../gps'
@@ -131,7 +131,12 @@ function CarMarker({ car }) {
   return <Marker ref={ref} position={[car.lat, car.lon]} icon={CAR_ICON} interactive={false} keyboard={false} />
 }
 
-export default function GpsMap({ path, outline = [], car, follow = false, onTileFail, controls = true, children }) {
+function ContextPick({ onPick }) {
+  useMapEvents({ contextmenu: (e) => onPick(e.latlng.lat, e.latlng.lng) })
+  return null
+}
+
+export default function GpsMap({ path, outline = [], car, follow = false, onTileFail, onContextPick, controls = true, children }) {
   const [base, setBase] = useState('dark')
   const runs = useMemo(() => speedRuns(path), [path])
   const center = car ?? path[path.length - 1]
@@ -151,6 +156,7 @@ export default function GpsMap({ path, outline = [], car, follow = false, onTile
         className="gps-map-leaflet"
       >
         <TileWatch base={base} onFail={onTileFail} />
+        {onContextPick && <ContextPick onPick={onContextPick} />}
         {outline.length > 1 && <Polyline positions={outline} pathOptions={{ color: '#5a5a5a', weight: 10, opacity: 0.55, lineCap: 'round', lineJoin: 'round' }} />}
         {runs.map((r, i) => (
           <Polyline key={i} positions={r.pts} pathOptions={{ color: r.color, weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />

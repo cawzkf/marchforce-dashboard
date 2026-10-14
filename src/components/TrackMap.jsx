@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { has, kmh, num } from '../format'
 import { VHI, VLO, bearing, comma, distanceM, gpsStatus, hasFix, recentFix, speedColor, speedDelta } from '../gps'
 import GpsMap from './GpsMap'
+import { clearDemoOrigin, setDemoOrigin } from '../useDemoTelemetry'
 
 const W = 640
 const H = 360
@@ -132,6 +133,16 @@ export function useGpsTrack(series, sessionKey) {
   }, [series, sessionKey])
 }
 
+const ORIGIN_TEXT = {
+  manual: 'no local escolhido no mapa',
+  aparelho: 'na localização informada pelo aparelho',
+  'padrão': 'no centro de Manaus (sem permissão de localização)',
+}
+
+function precision(m) {
+  return m >= 1000 ? `± ${comma(m / 1000, 1)} km` : `± ${Math.round(m)} m`
+}
+
 export default function TrackMap({ series, latest }) {
   const [choice, setChoice] = useState(null)
   const [tileFail, setTileFail] = useState(false)
@@ -147,6 +158,8 @@ export default function TrackMap({ series, latest }) {
   let note = null
   if (wanted === 'map' && tileFail) note = 'Mapa indisponível sem conexão com o servidor de mapas. Exibindo o traçado local.'
   else if (wanted === 'map' && !gpsOk && choice === 'map') note = 'Sem fix de GPS nas amostras recentes. Exibindo o traçado local.'
+
+  const demoOrigin = latest?.demo_origin ?? null
 
   const pick = (mode) => {
     if (mode === 'map') setTileFail(false)
@@ -179,7 +192,8 @@ export default function TrackMap({ series, latest }) {
       </header>
 
       {showMap ? (
-        <GpsMap path={gps.path} outline={gps.outline} car={gps.car} follow={follow} onTileFail={onTileFail}>
+        <GpsMap path={gps.path} outline={gps.outline} car={gps.car} follow={follow} onTileFail={onTileFail}
+          onContextPick={demoOrigin ? setDemoOrigin : undefined}>
           <div className="gps-hud">
             <span className="gps-hud-speed">{num(kmh(latest?.velocity), 1)} km/h</span>
             <span className="gps-hud-sub">{(latest?.drive_phase ?? '').toUpperCase()}</span>
@@ -194,6 +208,18 @@ export default function TrackMap({ series, latest }) {
         <TraceView series={series} />
       )}
       {note && <p className="track-note">{note}</p>}
+      {demoOrigin && (
+        <p className="track-note">
+          Demo posicionada {ORIGIN_TEXT[demoOrigin] ?? demoOrigin}
+          {demoOrigin === 'aparelho' && Number.isFinite(latest?.demo_origin_accuracy)
+            ? ` (precisão de ${precision(latest.demo_origin_accuracy)}${latest.demo_origin_accuracy > 200 ? ', aproximada por rede: o notebook não tem GPS' : ''})`
+            : ''}
+          . Clique com o botão direito no mapa para posicionar a pista em outro lugar.
+          {demoOrigin === 'manual' && (
+            <> <button type="button" className="link-btn" onClick={clearDemoOrigin}>Usar a localização do aparelho</button></>
+          )}
+        </p>
+      )}
 
       <div className="track-legend">
         <span>{VLO} km/h</span>

@@ -461,3 +461,13 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .gps-hud-speed { font-size: 15px; }
   .gps-map { aspect-ratio: 4 / 3; }
 }
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #ff5400;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
