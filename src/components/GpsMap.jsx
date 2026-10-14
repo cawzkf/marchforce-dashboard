@@ -54,7 +54,7 @@ function speedRuns(path) {
   return runs
 }
 
-function Viewport({ path, outline, follow, car }) {
+function Viewport({ path, outline, plan, follow, car }) {
   const map = useMap()
   const fitted = useRef(false)
 
@@ -72,7 +72,7 @@ function Viewport({ path, outline, follow, car }) {
       fitted.current = false
       return
     }
-    const pts = outline.length > 1 ? outline : path.map((p) => [p.lat, p.lon])
+    const pts = plan?.length > 1 ? plan : outline.length > 1 ? outline : path.map((p) => [p.lat, p.lon])
     if (pts.length < 2) {
       map.setView([car.lat, car.lon], 17, { animate: false })
       return
@@ -82,7 +82,7 @@ function Viewport({ path, outline, follow, car }) {
       map.fitBounds(bounds, { padding: [28, 28], maxZoom: 18, animate: false })
       fitted.current = true
     }
-  }, [map, path, outline, follow, car])
+  }, [map, path, outline, plan, follow, car])
 
   return null
 }
@@ -136,7 +136,7 @@ function ContextPick({ onPick }) {
   return null
 }
 
-export default function GpsMap({ path, outline = [], car, follow = false, onTileFail, onContextPick, controls = true, children }) {
+export default function GpsMap({ path, outline = [], plan, car, follow = false, onTileFail, onContextPick, controls = true, children }) {
   const [base, setBase] = useState('dark')
   const runs = useMemo(() => speedRuns(path), [path])
   const center = car ?? path[path.length - 1]
@@ -157,12 +157,13 @@ export default function GpsMap({ path, outline = [], car, follow = false, onTile
       >
         <TileWatch base={base} onFail={onTileFail} />
         {onContextPick && <ContextPick onPick={onContextPick} />}
+        {plan?.length > 1 && <Polyline positions={plan} pathOptions={{ color: '#9a9a9a', weight: 3, opacity: 0.7, dashArray: '6 8', lineCap: 'round', lineJoin: 'round' }} />}
         {outline.length > 1 && <Polyline positions={outline} pathOptions={{ color: '#5a5a5a', weight: 10, opacity: 0.55, lineCap: 'round', lineJoin: 'round' }} />}
         {runs.map((r, i) => (
           <Polyline key={i} positions={r.pts} pathOptions={{ color: r.color, weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
         ))}
         {car && <CarMarker car={car} />}
-        <Viewport path={path} outline={outline} follow={follow} car={center} />
+        <Viewport path={path} outline={outline} plan={plan} follow={follow} car={center} />
       </MapContainer>
       {controls && (
         <div className="gps-bases" role="group" aria-label="Camada do mapa">

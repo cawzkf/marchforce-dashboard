@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { buildRoadLoop } from './demoRoute'
 
 const WINDOW = 600
 const DT = 0.1
@@ -44,7 +45,16 @@ const M_PER_DEG = 111320
 const CELL_OFFSET = [4, -6, 9, -2, 1, -11, 7, 3, -4, 12, -8, 0, 5, -3, -9, 6].map((mv) => mv / 1000)
 const CELL_R = [12, 11.5, 13, 12.2, 11.8, 14, 12.5, 11.9, 12.1, 13.4, 12.8, 11.6, 12.3, 12.9, 13.8, 12].map((mo) => mo / 1000)
 
-function buildTrack() {
+const ROUTE_STEP_M = 2
+const CURVE_SPAN = 4
+const LAT_ACC = 2.2
+const BRAKE_ACC = 1.2
+const V_CURVE_MIN = 4.5
+const V_CURVE_MAX = 30
+const ROAD_RADIUS_M = 250
+const ROAD_DEBOUNCE_MS = 800
+
+function syntheticPoints() {
   const n = 1200
   const pts = []
   for (let i = 0; i <= n; i += 1) {
@@ -54,28 +64,70 @@ function buildTrack() {
       78 * Math.sin(th) - 18 * Math.sin(2 * th) + 6 * Math.sin(5 * th),
     ])
   }
-  const cum = [0]
-  for (let i = 1; i < pts.length; i += 1) {
-    cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]))
-  }
-  return { pts, cum, length: cum[cum.length - 1] }
+  return pts
 }
 
-const TRACK = buildTrack()
-
-function trackPos(d) {
-  const s = ((d % TRACK.length) + TRACK.length) % TRACK.length
-  let lo = 0
-  let hi = TRACK.cum.length - 1
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1
-    if (TRACK.cum[mid] <= s) lo = mid
-    else hi = mid
+/** Resamples a closed polyline (local meters) to ROUTE_STEP_M spacing and precomputes a curve speed limit with braking look-ahead. */
+function makeRoute(raw, kind, capCurves) {
+  const cum = [0]
+  for (let i = 1; i < raw.length; i += 1) cum.push(cum[i - 1] + Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]))
+  const length = cum[cum.length - 1]
+  const n = Math.max(8, Math.round(length / ROUTE_STEP_M))
+  const ds = length / n
+  const pts = []
+  let k = 0
+  for (let i = 0; i < n; i += 1) {
+    const d = i * ds
+    while (k < cum.length - 2 && cum[k + 1] <= d) k += 1
+    const f = (d - cum[k]) / (cum[k + 1] - cum[k] || 1)
+    pts.push([raw[k][0] + (raw[k + 1][0] - raw[k][0]) * f, raw[k][1] + (raw[k + 1][1] - raw[k][1]) * f])
   }
-  const f = (s - TRACK.cum[lo]) / (TRACK.cum[hi] - TRACK.cum[lo] || 1)
-  const [x0, y0] = TRACK.pts[lo]
-  const [x1, y1] = TRACK.pts[hi]
-  return [x0 + (x1 - x0) * f, y0 + (y1 - y0) * f]
+  const at = (i) => pts[((i % n) + n) % n]
+  const vmax = pts.map((p, i) => {
+    const a = at(i - CURVE_SPAN)
+    const b = at(i + CURVE_SPAN)
+    let turn = Math.atan2(b[1] - p[1], b[0] - p[0]) - Math.atan2(p[1] - a[1], p[0] - a[0])
+    turn = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)))
+    const radius = turn > 1e-3 ? (CURVE_SPAN * ds) / turn : Infinity
+    return Math.min(V_CURVE_MAX, Math.max(V_CURVE_MIN, Math.sqrt(LAT_ACC * radius)))
+  })
+  const limit = capCurves ? vmax.slice() : vmax.map(() => V_CURVE_MAX)
+  for (let pass = 0; pass < (capCurves ? 2 : 0); pass += 1) {
+    for (let i = n - 1; i >= 0; i -= 1) {
+      limit[i] = Math.min(limit[i], Math.sqrt(limit[(i + 1) % n] ** 2 + 2 * BRAKE_ACC * ds))
+    }
+  }
+  return { kind, pts, ds, n, length, limit }
+}
+
+function routeIndex(route, d) {
+  const s = ((d % route.length) + route.length) % route.length
+  const i = Math.floor(s / route.ds)
+  return [i % route.n, s / route.ds - i]
+}
+
+function positionAt(route, d) {
+  const [i, f] = routeIndex(route, d)
+  const [x0, y0] = route.pts[i]
+  const [x1, y1] = route.pts[(i + 1) % route.n]
+  return { x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, heading: (Math.atan2(x1 - x0, y1 - y0) * 180) / Math.PI }
+}
+
+function speedLimitAt(route, d) {
+  return route.limit[routeIndex(route, d)[0]]
+}
+
+const SYNTHETIC = makeRoute(syntheticPoints(), 'sintética', false)
+
+function roadRoute(points, originLat, originLon) {
+  const kx = M_PER_DEG * Math.cos((originLat * Math.PI) / 180)
+  return makeRoute(points.map((p) => [(p.lon - originLon) * kx, (p.lat - originLat) * M_PER_DEG]), 'ruas', true)
+}
+
+function planOf(route, originLat, originLon) {
+  const kx = M_PER_DEG * Math.cos((originLat * Math.PI) / 180)
+  const ll = route.pts.map(([x, y]) => [originLat + y / M_PER_DEG, originLon + x / kx])
+  return [...ll, ll[0]]
 }
 
 function noise(scale) {
@@ -116,6 +168,7 @@ function initialState() {
     eMech: 0, eElec: 0, avgPower: 0, peakI: 0,
     amb, tBat: amb + 4, tMotor: amb + 20, tCtrl: amb + 12,
     eta: 0.86, lap: 1,
+    route: SYNTHETIC, routeStart: 0, routeKey: 0, plan: planOf(SYNTHETIC, ORIGIN_LAT, ORIGIN_LON),
     gpsErrX: 0, gpsErrY: 0, sats: 10,
     originLat: ORIGIN_LAT, originLon: ORIGIN_LON, originSource: 'padrão', originAccuracy: null,
     session: `demo-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
@@ -152,12 +205,15 @@ function step(s) {
     s.burnTop = rand(8.6, 9.6)
   }
 
-  const grade = 0.006 * Math.sin((2 * Math.PI * s.dist) / TRACK.length + 0.8)
+  const lapDist = s.dist - s.routeStart
+  const vLim = speedLimitAt(s.route, lapDist)
+  const grade = 0.006 * Math.sin((2 * Math.PI * lapDist) / s.route.length + 0.8)
   const resist = CRR * MASS * G + 0.5 * RHO * CDA * s.v * s.v + MASS * G * grade
   const fMax = (T_MAX * GEAR * GEAR_EFF) / WHEEL_R
   const pCmd = 235 + 25 * Math.sin(s.t / 7)
-  const force = s.phase === 'burn' ? Math.min(fMax, pCmd / Math.max(s.v, 0.5)) : 0
-  const acc = s.phase === 'idle' ? 0 : (force - resist) / MASS
+  const force = s.phase === 'burn' && s.v < vLim ? Math.min(fMax, pCmd / Math.max(s.v, 0.5)) : 0
+  const brake = s.v > vLim + 0.2 ? BRAKE_ACC : 0
+  const acc = s.phase === 'idle' ? 0 : (force - resist) / MASS - brake
   s.v = Math.max(0, s.v + acc * DT)
 
   const omega = (s.v / WHEEL_R) * GEAR
@@ -192,12 +248,12 @@ function step(s) {
   s.dist += s.v * DT
   s.t += DT
 
-  const lap = Math.floor(s.dist / TRACK.length) + 1
+  const lap = Math.floor((s.dist - s.routeStart) / s.route.length) + 1
   if (lap > s.lap) {
     s.lap = lap
   }
 
-  const [x, y] = trackPos(s.dist)
+  const { x, y } = positionAt(s.route, s.dist - s.routeStart)
   const energyWh = s.eElec / 3600
   const cellMin = Math.min(...cells)
   const cellMax = Math.max(...cells)
@@ -234,7 +290,10 @@ function step(s) {
     km_per_kwh: energyWh > 0.2 ? s.dist / 1000 / (energyWh / 1000) : null,
     drive_phase: s.phase,
     lap,
-    lap_distance: s.dist % TRACK.length,
+    lap_distance: (s.dist - s.routeStart) % s.route.length,
+    demo_route: s.route.kind,
+    demo_route_key: s.routeKey,
+    demo_route_plan: s.plan,
   }
   sample.alerts = alertsFor(s, sample)
   return sample
@@ -251,9 +310,29 @@ export function useDemoTelemetry(enabled) {
     setSeries([])
     setLatest(null)
     let cancelled = false
+    let roadTimer = null
+    let roadCtrl = null
+    const setRoute = (route) => {
+      const s = st.current
+      Object.assign(s, { route, routeStart: s.dist, lap: 1, routeKey: s.routeKey + 1, plan: planOf(route, s.originLat, s.originLon) })
+      setSeries([])
+    }
+    const requestRoad = () => {
+      clearTimeout(roadTimer)
+      roadCtrl?.abort()
+      const { originLat: lat, originLon: lon } = st.current
+      roadTimer = setTimeout(async () => {
+        roadCtrl = new AbortController()
+        const loop = await buildRoadLoop(lat, lon, ROAD_RADIUS_M, roadCtrl.signal)
+        const s = st.current
+        if (cancelled || !loop || s.originLat !== lat || s.originLon !== lon) return
+        setRoute(roadRoute(loop.points, lat, lon))
+      }, ROAD_DEBOUNCE_MS)
+    }
     const place = (lat, lon, source, accuracy = null) => {
       Object.assign(st.current, { originLat: lat, originLon: lon, originSource: source, originAccuracy: accuracy })
-      setSeries([])
+      setRoute(SYNTHETIC)
+      requestRoad()
     }
     const fromDevice = () => {
       if (!window.isSecureContext || !navigator.geolocation) return
@@ -265,7 +344,10 @@ export function useDemoTelemetry(enabled) {
     }
     const manual = storedOrigin()
     if (manual) place(manual.lat, manual.lon, 'manual')
-    else fromDevice()
+    else {
+      requestRoad()
+      fromDevice()
+    }
     const onOrigin = (e) => {
       if (e.detail.source === 'manual') place(e.detail.lat, e.detail.lon, 'manual')
       else { place(ORIGIN_LAT, ORIGIN_LON, 'padrão'); fromDevice() }
@@ -282,6 +364,8 @@ export function useDemoTelemetry(enabled) {
     return () => {
       cancelled = true
       clearInterval(id)
+      clearTimeout(roadTimer)
+      roadCtrl?.abort()
       window.removeEventListener(ORIGIN_EVENT, onOrigin)
     }
   }, [enabled])
