@@ -72,7 +72,7 @@ function initialState() {
     burnTop: rand(8.6, 9.6), coastLow: rand(4.2, 4.9),
     eMech: 0, eElec: 0, avgPower: 0, peakI: 0,
     amb, tBat: amb + 4, tMotor: amb + 20, tCtrl: amb + 12,
-    eta: 0.86, lap: 1, lapStart: 0, lapMsg: null,
+    eta: 0.86, lap: 1,
     session: `demo-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
   }
 }
@@ -80,23 +80,20 @@ function initialState() {
 function alertsFor(s, sample) {
   const out = []
   const add = (code, severity, message, value) => out.push({ code, severity, message, value })
-  if (sample.soc < 0.05) add('E-SOC-CRITICAL', 'error', 'Estado de carga crítico', +(sample.soc * 100).toFixed(1))
-  else if (sample.soc < 0.2) add('W-SOC-LOW', 'warning', 'Estado de carga baixo', +(sample.soc * 100).toFixed(1))
-  if (sample.idc > 100) add('E-IDC-OVERCURRENT', 'error', 'Sobrecorrente no barramento DC', +sample.idc.toFixed(1))
-  else if (sample.idc > 60) add('W-IDC-HIGH', 'warning', 'Corrente DC elevada', +sample.idc.toFixed(1))
+  if (sample.soc < 0.15) add('E-SOC-CRITICAL', 'error', 'Estado de carga crítico', +(sample.soc * 100).toFixed(1))
+  else if (sample.soc < 0.3) add('W-SOC-LOW', 'warning', 'Estado de carga baixo', +(sample.soc * 100).toFixed(1))
+  if (sample.idc > 30) add('E-IDC-OVERCURRENT', 'error', 'Sobrecorrente no barramento DC', +sample.idc.toFixed(1))
+  else if (sample.idc > 11) add('W-IDC-HIGH', 'warning', 'Corrente DC elevada', +sample.idc.toFixed(1))
   const thermal = [
-    ['motor_temp', 'MOTOR', 'do motor', 90, 125],
-    ['controller_temp', 'CTRL', 'do controlador', 70, 85],
-    ['battery_temp', 'BAT', 'da bateria', 45, 60],
+    ['motor_temp', 'W-MOTOR-TEMP', 'E-MOTOR-OVERTEMP', 'do motor', 90, 125],
+    ['controller_temp', 'W-CTRL-TEMP', 'E-CTRL-OVERTEMP', 'do controlador', 70, 85],
+    ['battery_temp', 'W-BATT-TEMP', 'E-BATT-OVERTEMP', 'da bateria', 45, 60],
   ]
-  thermal.forEach(([key, tag, name, warn, crit]) => {
+  thermal.forEach(([key, warnCode, critCode, name, warn, crit]) => {
     const v = sample[key]
-    if (v >= crit) add(`E-TEMP-${tag}`, 'error', `Temperatura ${name} crítica`, +v.toFixed(1))
-    else if (v >= warn) add(`W-TEMP-${tag}`, 'warning', `Temperatura ${name} elevada`, +v.toFixed(1))
+    if (v >= crit) add(critCode, 'error', `Temperatura ${name} crítica`, +v.toFixed(1))
+    else if (v >= warn) add(warnCode, 'warning', `Temperatura ${name} elevada`, +v.toFixed(1))
   })
-  const spread = (sample.cell_voltage_max - sample.cell_voltage_min) * 1000
-  if (spread > 60) add('W-CELL-SPREAD', 'warning', 'Desbalanceamento entre células', +spread.toFixed(0))
-  if (s.lapMsg && s.t - s.lapMsg.at < 6) add('I-LAP', 'info', s.lapMsg.text, null)
   return out
 }
 
@@ -152,12 +149,7 @@ function step(s) {
 
   const lap = Math.floor(s.dist / TRACK.length) + 1
   if (lap > s.lap) {
-    const lapTime = s.t - s.lapStart
-    const mm = String(Math.floor(lapTime / 60)).padStart(2, '0')
-    const ss = String(Math.floor(lapTime % 60)).padStart(2, '0')
-    s.lapMsg = { at: s.t, text: `Volta ${s.lap} concluída em ${mm}:${ss}` }
     s.lap = lap
-    s.lapStart = s.t
   }
 
   const [x, y] = trackPos(s.dist)

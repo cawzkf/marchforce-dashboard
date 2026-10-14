@@ -28,7 +28,7 @@ export default function PowertrainPanel({ latest }) {
   const pElec = latest?.electrical_power
   const pMech = latest?.power
   const loss = has(pElec) && has(pMech) ? Math.max(0, pElec - pMech) : null
-  const eff = latest?.motor_efficiency
+  const eff = latest?.drive_phase === 'burn' ? latest?.motor_efficiency : null
 
   return (
     <section className="panel">
