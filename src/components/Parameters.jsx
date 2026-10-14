@@ -6,11 +6,21 @@ export default function Parameters() {
   const [editing, setEditing] = useState(false)
 
   const load = () =>
-    fetch('/api/config').then((r) => r.json()).then(setCfg).catch(() => {})
+    fetch('/api/config').then((r) => r.json()).then(setCfg).catch(() => setCfg(false))
 
   useEffect(() => { load() }, [])
 
-  if (!cfg) return null
+  if (cfg === null) return null
+  if (!cfg?.vehicle || !cfg?.alerts) {
+    return (
+      <section className="params">
+        <div className="params-block">
+          <h3>Parâmetros do veículo</h3>
+          <p className="muted">Configuração indisponível: backend fora do ar ou modo demonstração.</p>
+        </div>
+      </section>
+    )
+  }
   const v = cfg.vehicle
   const a = cfg.alerts
 
