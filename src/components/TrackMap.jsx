@@ -139,6 +139,11 @@ const ORIGIN_TEXT = {
   'padrão': 'no centro de Manaus (sem permissão de localização)',
 }
 
+const ROUTE_TEXT = {
+  ruas: 'trajeto pelas ruas (OpenStreetMap, rota calculada pelo OSRM)',
+  'sintética': 'trajeto sintético (sem conexão com o roteador)',
+}
+
 function precision(m) {
   return m >= 1000 ? `± ${comma(m / 1000, 1)} km` : `± ${Math.round(m)} m`
 }
@@ -148,7 +153,8 @@ export default function TrackMap({ series, latest }) {
   const [tileFail, setTileFail] = useState(false)
   const [follow, setFollow] = useState(false)
   const gpsOk = recentFix(series)
-  const gps = useGpsTrack(gpsOk ? series : null)
+  const routeKey = latest?.demo_route_key != null ? `${latest.session_id}:${latest.demo_route_key}` : undefined
+  const gps = useGpsTrack(gpsOk ? series : null, routeKey)
   const status = gpsStatus(latest)
   const delta = speedDelta(latest)
   const onTileFail = useCallback(() => setTileFail(true), [])
@@ -160,6 +166,7 @@ export default function TrackMap({ series, latest }) {
   else if (wanted === 'map' && !gpsOk && choice === 'map') note = 'Sem fix de GPS nas amostras recentes. Exibindo o traçado local.'
 
   const demoOrigin = latest?.demo_origin ?? null
+  const demoRoute = latest?.demo_route ?? null
 
   const pick = (mode) => {
     if (mode === 'map') setTileFail(false)
@@ -192,7 +199,7 @@ export default function TrackMap({ series, latest }) {
       </header>
 
       {showMap ? (
-        <GpsMap path={gps.path} outline={gps.outline} car={gps.car} follow={follow} onTileFail={onTileFail}
+        <GpsMap path={gps.path} outline={gps.outline} plan={demoOrigin ? latest.demo_route_plan : undefined} car={gps.car} follow={follow} onTileFail={onTileFail}
           onContextPick={demoOrigin ? setDemoOrigin : undefined}>
           <div className="gps-hud">
             <span className="gps-hud-speed">{num(kmh(latest?.velocity), 1)} km/h</span>
@@ -214,6 +221,7 @@ export default function TrackMap({ series, latest }) {
           {demoOrigin === 'aparelho' && Number.isFinite(latest?.demo_origin_accuracy)
             ? ` (precisão de ${precision(latest.demo_origin_accuracy)}${latest.demo_origin_accuracy > 200 ? ', aproximada por rede: o notebook não tem GPS' : ''})`
             : ''}
+          {demoRoute ? `, ${ROUTE_TEXT[demoRoute] ?? demoRoute}` : ''}
           . Clique com o botão direito no mapa para posicionar a pista em outro lugar.
           {demoOrigin === 'manual' && (
             <> <button type="button" className="link-btn" onClick={clearDemoOrigin}>Usar a localização do aparelho</button></>
