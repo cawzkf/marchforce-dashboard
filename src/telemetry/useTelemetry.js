@@ -40,8 +40,9 @@ function addFrames(store, frames, session, ageS, lastSeq) {
     store.frameSession = session
     store.frames = []
   }
-  store.frames = [...store.frames, ...frames].slice(-MAX_FRAMES)
-  store.lastSeq = lastSeq
+  const known = store.frames[store.frames.length - 1]?.seq ?? 0
+  store.frames = [...store.frames, ...frames.filter((f) => f.seq > known)].slice(-MAX_FRAMES)
+  store.lastSeq = Math.max(store.lastSeq, lastSeq)
   if (ageS !== null) store.frameAt = Date.now() - ageS * 1000
 }
 

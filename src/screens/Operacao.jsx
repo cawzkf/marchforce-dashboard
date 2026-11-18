@@ -45,7 +45,7 @@ function OperatingPoint({ s }) {
       <div className="stats-row">
         <Stat label="Rotação" value={br(s?.motor_rpm, 0)} unit="rpm" />
         <Stat label="Torque (modelo)" value={br(s?.motor_torque, 2)} unit="N·m" />
-        <Stat label="Rendimento (modelo)" value={br((s?.motor_efficiency ?? 0) * 100)} unit="%" />
+        <Stat label="Rendimento (modelo)" value={br((s?.motor_efficiency ?? NaN) * 100)} unit="%" />
       </div>
       <p className="muted small">0,627 N·m é o torque nominal. 1,217 N·m é o limite por 11 A de fase. A linha laranja marca a rotação em vazio. Rotação zero indica roda livre.</p>
     </Panel>

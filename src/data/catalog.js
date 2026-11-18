@@ -46,7 +46,7 @@ export const ALERTS = [
   row('E-DATA-INVALID', 'error', 'Leitura NaN ou infinita', 'Leitura inválida no processamento', 'SEM DADOS', 'mantenha o ritmo', 'Conferir sensores e cabos do nó', 'Não confiar nos valores da tela', 'data', null),
   row('E-COMM-STALE', 'error', '3 s sem amostra na API', 'Telemetria interrompida', 'SEM DADOS', 'mantenha o ritmo', 'Conferir rede e computador de bordo', 'Confirmar o carro visualmente', 'comm', null),
   row('E-PERSIST', 'error', 'Falha ao gravar no banco', 'Falha ao gravar a amostra no banco', null, null, 'Sem ação', 'Corrigir o banco: o histórico está parado', 'storage', null),
-  row('E-MQTT', 'error', 'API sem conexão com o broker', 'Falha de comunicação com o broker MQTT', null, null, 'Conferir o broker MQTT', 'Confirmar o carro visualmente', 'broker', null),
+  row('E-MQTT', 'error', 'API ou processamento sem broker, em até 7,5 s', 'Falha de comunicação com o broker MQTT', null, null, 'Conferir o broker MQTT', 'Confirmar o carro visualmente', 'broker', null),
 ]
 
 export const ALERT_BY_CODE = Object.fromEntries(ALERTS.map((a) => [a.code, a]))
