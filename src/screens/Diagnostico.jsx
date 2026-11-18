@@ -22,6 +22,7 @@ function AlertCard({ t, current }) {
   const meta = SIGNAL_META[key]
   const rate = key ? trend(t.series, key) : null
   const left = key ? secondsToLimit(t.series, key) : null
+  const reached = key && levelOf(key, value) === 'crit'
   const event = t.events.find((e) => e.code === alert.code)
   return (
     <section className="panel fault-card">
@@ -37,7 +38,7 @@ function AlertCard({ t, current }) {
         <Stat label="Aviso" value={limit ? br(limit.warn, limit.warn % 1 ? 1 : 0) : '--'} unit={limit?.unit} />
         <Stat label="Corte" value={limit ? br(limit.crit, limit.crit % 1 ? 1 : 0) : '--'} unit={limit?.unit} />
         <Stat label="Taxa" value={has(rate) ? br(rate * 60) : '--'} unit={meta ? `${meta.unit}/min` : ''} />
-        <Stat label="Até o corte" value={has(left) ? br(left / 60) : '--'} unit="min" />
+        <Stat label="Até o corte" value={reached ? 'corte atingido' : has(left) ? br(left / 60) : '--'} unit={reached ? '' : 'min'} />
       </div>
       <div className="action-box">
         <span>Ação</span>
