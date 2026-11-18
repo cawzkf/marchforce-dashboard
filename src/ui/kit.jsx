@@ -129,7 +129,7 @@ export function HealthStrip({ t }) {
     tempStatus('Inversor', 'controller_temp', s, 'Normal'),
     tempStatus('Motor', 'motor_temp', s, 'Normal'),
     status('Barramento DC', dcAlert ? 'Alerta' : 'Normal', `${br(s.vdc)} V · ${br(s.idc, 2)} A`, dcAlert),
-    status('Telemetria', t.stale ? 'Sem dados' : 'Ativa', t.stale ? `Última amostra há ${br(t.age, 0)} s` : `Última amostra há ${br(t.age, 1)} s`, t.stale),
+    status('Telemetria', t.stale ? 'Sem dados' : 'Ativa', t.stale ? `Última amostra há ${br(t.age, 0)} s` : `Última amostra há ${br(t.age, 1)} s${has(s.bus_age_ms) ? ` · RS485 ${br(s.bus_age_ms, 0)} ms` : ''}`, t.stale),
     status('Gêmeo digital', !has(residual) ? 'Indisponível' : diverged ? 'Divergente' : 'Coerente', has(residual) ? `Motor ${residual >= 0 ? '+' : ''}${br(residual)} K do modelo` : 'Modelo indisponível', diverged),
   ]
   return (

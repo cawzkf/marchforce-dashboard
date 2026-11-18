@@ -6,6 +6,9 @@ const P = {
   etaGear: 0.97, etaInverter: 0.97, aux: 3, kt: 0.115, ke: 0.1146, ra: 0.236, i0: 0.419,
   cellR: 0.02, imbalance: 0.01, torque: 0.75, burn: 33 / 3.6, coast: 16 / 3.6, ambient: 30,
 }
+const PRECHARGE_END_S = 1
+const DEAD_MAN_AT_S = 4
+const STANDING_START_S = 7
 const NODES = { motor: [2.5, 500], inverter: [4, 150], battery: [1.5, 2600] }
 const OCV = [[0, 2.5], [0.05, 2.95], [0.1, 3.15], [0.2, 3.22], [0.3, 3.25], [0.4, 3.27], [0.5, 3.28],
   [0.6, 3.29], [0.7, 3.3], [0.8, 3.32], [0.9, 3.34], [0.95, 3.38], [1, 3.45]]
@@ -66,6 +69,26 @@ function trackPosition(distance) {
   return { lat: a[0] + (b[0] - a[0]) * f, lon: a[1] + (b[1] - a[1]) * f }
 }
 
+export function vehicleSignals(t, velocity, o, samples) {
+  const fault = (o.idc ?? 0) >= LIMITS.idc.crit ? 'overcurrent' : (o.controller_temp ?? 0) >= LIMITS.controller_temp.crit ? 'overtemp' : null
+  const bmsOk = (o.vdc ?? 99) > PACK.cells * 2.5 && (o.battery_temp ?? 0) < LIMITS.battery_temp.crit
+  const dcLink = t >= PRECHARGE_END_S && bmsOk
+  const deadMan = t >= DEAD_MAN_AT_S
+  let state = 'run'
+  if (fault) state = 'fault'
+  else if (t < PRECHARGE_END_S) state = 'precharge'
+  else if (!deadMan) state = 'wait_dead_man'
+  else if (t < STANDING_START_S && velocity <= 0.05) state = 'ready'
+  return {
+    dc_link_on: dcLink,
+    inv_inputs: { estop_closed: true, bms_ok: bmsOk, dead_man: deadMan, enable: deadMan && dcLink && bmsOk && !fault },
+    inv_state: state,
+    inv_fault: fault,
+    bus_age_ms: 20 + (samples % 4) * 20,
+    bus_errors: 0,
+  }
+}
+
 function ocv(soc) {
   const s = Math.min(1, Math.max(0, soc))
   return interpolate(OCV, s)
@@ -79,7 +102,7 @@ export function createDemoEngine(startTime = Date.now() / 1000) {
   const session = `MF-demo-${new Date(startTime * 1000).toISOString().slice(0, 16).replace(/[-:T]/g, '')}`
 
   return function step(dt, fault) {
-    if (st.phase === 'idle' && st.t >= 3) st.phase = 'burn'
+    if (st.phase === 'idle' && st.t >= STANDING_START_S) st.phase = 'burn'
     if (st.phase === 'burn' && st.v >= P.burn) st.phase = 'coast'
     if (st.phase === 'coast' && st.v <= P.coast) st.phase = 'burn'
     const resist = P.mass * P.g * P.cr + 0.5 * P.rho * P.cda * st.v * st.v
@@ -112,6 +135,7 @@ export function createDemoEngine(startTime = Date.now() / 1000) {
     st.t += dt
 
     const o = fault ? faultOverrides(fault.id, fault.elapsed) : {}
+    st.samples = (st.samples ?? 0) + 1
     const vdc = o.vdc ?? modelV
     const idc = o.idc ?? modelI
     const cellAvg = vdc / PACK.cells
@@ -149,6 +173,8 @@ export function createDemoEngine(startTime = Date.now() / 1000) {
       ...trackPosition(st.distance),
       gps_fix: true,
       injected_fault: fault?.id ?? null,
+      km_per_kwh_complete: true,
+      ...vehicleSignals(st.t, st.v, o, st.samples),
     }
     sample.alerts = evaluate(sample)
     return sample

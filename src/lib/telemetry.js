@@ -27,6 +27,8 @@ export function pilotCommand(sample, stale) {
   const order = rankedAlerts(sample).map(describe).find((d) => d?.pilot)
   if (order) return { title: order.pilot, note: order.pilotNote, tone: 'alert' }
   if (sample.data_source === 'bench') return { title: 'BANCADA', note: 'velocidade indisponível', tone: 'coast' }
+  if (sample.inv_state === 'precharge') return { title: 'AGUARDE', note: 'pré-carga', tone: 'coast' }
+  if (sample.inv_state === 'wait_dead_man') return { title: 'SEGURE O HOMEM-MORTO', note: 'no volante', tone: 'coast' }
   if (sample.drive_phase === 'burn') return { title: 'ACELERE', note: 'até 33 km/h', tone: 'burn' }
   if (sample.drive_phase === 'coast') return { title: 'SOLTE', note: 'religar em 16 km/h', tone: 'coast' }
   return { title: 'AGUARDE', note: 'largada', tone: 'coast' }
@@ -36,18 +38,21 @@ export function mechanicState(sample, stale) {
   if (!sample || stale) {
     return { step: 'TELEMETRIA', title: 'SEM DADOS', note: 'Conferir rede e computador de bordo.', tone: 'alert' }
   }
-  const top = rankedAlerts(sample)[0]
+  const top = rankedAlerts(sample).find((a) => describe(a)?.mechanic !== 'Sem ação')
   const info = describe(top)
   if (info) {
-    const error = top.severity === 'error'
+    const estop = info.mechanic.startsWith('Apertar o E-STOP')
     return {
       step: `AO PARAR O CARRO · ${top.code}`,
-      title: error ? 'APERTE O E-STOP' : 'VERIFIQUE',
-      note: `${info.mechanic}.`,
+      title: estop ? 'APERTE O E-STOP' : 'VERIFIQUE',
+      note: estop ? 'A tela vai apagar. Siga o procedimento no box.' : `${info.mechanic}.`,
       tone: 'alert',
     }
   }
   if (sample.data_source === 'bench') return { step: 'BANCADA', title: 'BANCADA', note: 'Medindo tensão e corrente.', tone: 'plain' }
+  if (sample.inv_state === 'precharge') return { step: 'PASSO 1 DE 3', title: 'AGUARDE', note: 'Pré-carga em curso.', tone: 'plain' }
+  if (sample.inv_state === 'wait_dead_man') return { step: 'PASSO 2 DE 3', title: 'PEÇA O HOMEM-MORTO', note: 'O piloto segura o comando no volante.', tone: 'plain' }
+  if (sample.inv_state === 'ready') return { step: 'PASSO 3 DE 3', title: 'PODE LARGAR', note: 'Cadeia fechada e sem alertas.', tone: 'go' }
   if (Number(sample.velocity) > 0.5) return { step: 'EM PROVA', title: 'EM PROVA', note: 'Sem alertas ativos.', tone: 'plain' }
   return { step: 'CARRO PARADO', title: 'PODE LARGAR', note: 'Sem alertas ativos.', tone: 'go' }
 }

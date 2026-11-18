@@ -29,19 +29,19 @@ const row = (code, severity, when, message, pilot, pilotNote, mechanic, box, gro
 })
 
 export const ALERTS = [
-  row('W-SOC-LOW', 'warning', 'Carga em até 30 %', 'Estado de carga baixo', 'MANTENHA A FAIXA', 'carga baixa', 'Conferir carga antes da próxima saída', 'Acompanhar a bateria', 'soc', 'soc'),
-  row('E-SOC-CRITICAL', 'error', 'Carga em até 15 %', 'Estado de carga crítico', 'VÁ AO BOX', 'carga crítica', 'Apertar o E-STOP e levar à carga', 'Preparar a entrada no box', 'soc', 'soc'),
-  row('W-VDC-RANGE', 'warning', 'Até 45 V ou acima de 54,75 V', 'Tensão DC fora da faixa de operação da bateria', 'MANTENHA A FAIXA', 'tensão fora da faixa', 'Conferir tensão do pack e conexões', 'Acompanhar a tensão', 'voltage', 'vdc'),
+  row('W-SOC-LOW', 'warning', 'Carga em até 30 %', 'Estado de carga baixo', 'MANTENHA A FAIXA', 'carga baixa', 'Conferir carga antes da próxima saída', 'Observar o estado de carga', 'soc', 'soc'),
+  row('E-SOC-CRITICAL', 'error', 'Carga em até 15 %', 'Estado de carga crítico', 'VÁ AO BOX', 'carga crítica', 'Apertar o E-STOP e levar à carga', 'Separar o carregador', 'soc', 'soc'),
+  row('W-VDC-RANGE', 'warning', 'Até 45 V ou acima de 54,75 V', 'Tensão DC fora da faixa de operação da bateria', 'MANTENHA A FAIXA', 'tensão anormal', 'Conferir tensão do pack e conexões', 'Observar a tensão DC', 'voltage', 'vdc'),
   row('E-VDC-RANGE', 'error', 'Até 37,5 V ou a partir de 60 V', 'Tensão DC fora do limite da bateria', 'SOLTE E PARE', 'tensão no limite', 'Apertar o E-STOP e medir o pack', 'Ir até o carro', 'voltage', 'vdc'),
-  row('W-IDC-HIGH', 'warning', 'Corrente a partir de 10 A', 'Corrente DC no limite do inversor', 'SOLTE', 'corrente alta', 'Conferir limite do inversor e arrasto', 'Acompanhar a corrente', 'current', 'idc'),
+  row('W-IDC-HIGH', 'warning', 'Corrente a partir de 10 A', 'Corrente DC no limite do inversor', 'SOLTE', 'corrente alta', 'Conferir limite do inversor e arrasto', 'Observar a corrente DC', 'current', 'idc'),
   row('E-IDC-OVERCURRENT', 'error', 'Corrente a partir de 12 A', 'Corrente DC no limite de corte do BMS', 'SOLTE E PARE', 'corrente no corte', 'Apertar o E-STOP, conferir fusível e BMS', 'Ir até o carro', 'current', 'idc'),
-  row('W-SPEED-HIGH', 'warning', 'A partir de 40 km/h', 'Velocidade elevada', 'SOLTE', 'velocidade alta', 'Conferir o sensor de velocidade', 'Acompanhar a velocidade', 'speed', 'velocity'),
+  row('W-SPEED-HIGH', 'warning', 'A partir de 40 km/h', 'Velocidade elevada', 'SOLTE', 'velocidade alta', 'Conferir o sensor de velocidade', 'Observar a velocidade', 'speed', 'velocity'),
   row('E-SPEED-CRITICAL', 'error', 'A partir de 45 km/h', 'Velocidade crítica', 'SOLTE E FREIE', 'velocidade crítica', 'Conferir Hall da roda e freios', 'Confirmar com o piloto na parada', 'speed', 'velocity'),
-  row('W-BATT-TEMP', 'warning', 'Bateria a partir de 45 °C', 'Temperatura da bateria elevada', 'VÁ AO BOX', 'bateria quente', 'Medir o pack e aguardar esfriar', 'Preparar termômetro', 'battery', 'battery_temp'),
+  row('W-BATT-TEMP', 'warning', 'Bateria a partir de 45 °C', 'Temperatura da bateria elevada', 'VÁ AO BOX', 'bateria quente', 'Medir o pack e aguardar esfriar', 'Separar o termômetro', 'battery', 'battery_temp'),
   row('E-BATT-OVERTEMP', 'error', 'Bateria a partir de 60 °C', 'Bateria acima do limite de descarga do LiFePO4', 'PARE COM SEGURANÇA', 'bateria no limite', 'Apertar o E-STOP e afastar a equipe', 'Acionar o procedimento de bateria', 'battery', 'battery_temp'),
-  row('W-MOTOR-TEMP', 'warning', 'Carcaça a partir de 90 °C', 'Temperatura do motor elevada', 'VÁ AO BOX', 'mantenha roda livre', 'Medir a carcaça, conferir sonda e dissipação', 'Preparar a entrada e o termômetro', 'motor', 'motor_temp'),
+  row('W-MOTOR-TEMP', 'warning', 'Carcaça a partir de 90 °C', 'Temperatura do motor elevada', 'VÁ AO BOX', 'mantenha roda livre', 'Medir a carcaça, conferir sonda e dissipação', 'Separar o termômetro', 'motor', 'motor_temp'),
   row('E-MOTOR-OVERTEMP', 'error', 'Carcaça a partir de 110 °C', 'Sobretemperatura no motor', 'SOLTE E PARE', 'motor no limite', 'Apertar o E-STOP e aguardar esfriar', 'Ir até o carro', 'motor', 'motor_temp'),
-  row('W-CTRL-TEMP', 'warning', 'Inversor a partir de 70 °C', 'Temperatura do controlador elevada', 'VÁ AO BOX', 'inversor quente', 'Conferir ventilação e fixação do inversor', 'Preparar a entrada no box', 'inverter', 'controller_temp'),
+  row('W-CTRL-TEMP', 'warning', 'Inversor a partir de 70 °C', 'Temperatura do controlador elevada', 'VÁ AO BOX', 'inversor quente', 'Conferir ventilação e fixação do inversor', 'Separar o termômetro', 'inverter', 'controller_temp'),
   row('E-CTRL-OVERTEMP', 'error', 'Inversor a partir de 85 °C', 'Sobretemperatura no controlador', 'SOLTE E PARE', 'inversor no limite', 'Apertar o E-STOP e aguardar esfriar', 'Ir até o carro', 'inverter', 'controller_temp'),
   row('E-DATA-INVALID', 'error', 'Leitura NaN ou infinita', 'Leitura inválida no processamento', 'SEM DADOS', 'mantenha o ritmo', 'Conferir sensores e cabos do nó', 'Não confiar nos valores da tela', 'data', null),
   row('E-COMM-STALE', 'error', '3 s sem amostra na API', 'Telemetria interrompida', 'SEM DADOS', 'mantenha o ritmo', 'Conferir rede e computador de bordo', 'Confirmar o carro visualmente', 'comm', null),
@@ -88,9 +88,9 @@ export const SIGNALS = [
   ['Energia', 'Tensão e corrente DC', 'vdc, idc', 'INA228 com shunt de 7,5 mΩ', 'Modbus, nó 1', 'contract'],
   ['Energia', 'Corrente redundante', 'idc_aux (novo)', 'ACS758 com ADS1115', 'Modbus, nó 1', 'pending', 'Campo a criar'],
   ['Energia', 'Energia e km/kWh', 'energy_wh, km_per_kwh', 'Integração de vdc × idc', 'Processamento', 'computed'],
-  ['Segurança', 'Elo CC energizado', 'dc_link_on (novo)', 'Optoacoplador 4N25', 'Modbus, nó 1', 'pending', 'Campo a criar'],
-  ['Segurança', 'Emergência, BMS-OK, homem-morto', 'inv_inputs (novo)', 'Entradas cabeadas do inversor', 'Modbus, nó 2', 'pending', 'Mapa a definir'],
-  ['Inversor', 'Estado e código de falha', 'inv_state, inv_fault (novos)', 'Firmware STM32G431', 'Modbus, nó 2', 'pending', 'Mapa a definir'],
+  ['Segurança', 'Elo CC energizado', 'dc_link_on', 'Optoacoplador 4N25', 'Modbus, nó 1', 'simulated'],
+  ['Segurança', 'Emergência, BMS-OK, homem-morto', 'inv_inputs', 'Entradas cabeadas do inversor', 'Modbus, nó 2', 'simulated'],
+  ['Inversor', 'Estado e código de falha', 'inv_state, inv_fault', 'Firmware STM32G431', 'Modbus, nó 2', 'simulated'],
   ['Motor', 'Rotação', 'motor_rpm', 'Sensores Hall do motor', 'Modbus, nó 2', 'contract'],
   ['Motor', 'Torque e rendimento', 'motor_torque, motor_efficiency', 'Modelo do gêmeo digital', 'Processamento', 'computed'],
   ['Bateria', 'Célula mín, média e máx', 'cell_voltage_*', 'BMS com interface de dados', 'Modbus, nó 3', 'contract'],
@@ -100,11 +100,13 @@ export const SIGNALS = [
   ['Térmica', 'Temperatura esperada do motor', 'motor_temp_model', 'Modelo térmico do gêmeo', 'Processamento', 'computed'],
   ['Veículo', 'Velocidade e aceleração', 'velocity, acceleration', 'Hall da roda e MPU-6050', 'Modbus, nó 1', 'contract'],
   ['Veículo', 'Posição GNSS', 'lat, lon, gps_sats, gps_hdop', 'Módulo GPS', 'Modbus, nó 1', 'contract'],
-  ['Rede', 'Idade e erros por nó', 'bus_age, bus_errors (novos)', 'Mestre Modbus', 'Computador de bordo', 'pending', 'Campo a criar'],
+  ['Rede', 'Idade e erros do barramento', 'bus_age_ms, bus_errors', 'Mestre Modbus', 'Computador de bordo', 'simulated'],
   ['Isolação', 'Resistência de isolação', 'não existe', 'Sem monitor no esquemático', 'Sem caminho', 'none', 'Sem sensor'],
 ]
 
-export const SIGNAL_STATUS = { contract: 'No contrato', computed: 'Calculado', pending: 'A criar ou definir', none: 'Sem sensor' }
+export const SIGNAL_STATUS = { contract: 'No contrato', computed: 'Calculado', simulated: 'Simulado, hardware pendente', pending: 'A criar ou definir', none: 'Sem sensor' }
+
+export const INVERTER_STATES = { precharge: 'pré-carga', wait_dead_man: 'aguardando homem-morto', ready: 'liberado', run: 'em operação', fault: 'falha' }
 
 export const DATA_PATH = [
   ['Nós de aquisição', 'ESP32-S3, amostragem de 10 Hz'],

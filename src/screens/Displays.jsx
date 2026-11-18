@@ -31,7 +31,7 @@ export function PilotDisplay({ t }) {
         <div><span>Bateria</span><strong>{br((s?.soc ?? NaN) * 100, 0)} %</strong></div>
         {info
           ? <div><span>{LIMITS[info.signal].label}</span><strong>{br(signalValue(s, info.signal), 0)} {LIMITS[info.signal].unit}</strong></div>
-          : <div><span>km/kWh</span><strong>{s?.km_per_kwh > 0 ? br(s.km_per_kwh, 0) : '--'}</strong></div>}
+          : <div><span>km/kWh parcial</span><strong>{s?.km_per_kwh_complete !== false && s?.km_per_kwh > 0 ? br(s.km_per_kwh, 0) : '--'}</strong></div>}
       </div>
     </div>
   )
@@ -178,11 +178,11 @@ export function Displays({ t, href }) {
         </Panel>
       </div>
       <div className="display-notes">
-        <Panel title="Sequência de partida" note="Dados indisponíveis no contrato">
+        <Panel title="Sequência de partida" note="Simulada, hardware pendente">
           <ol className="steps-list">
-            <li>Pré-carga: depende do campo dc_link_on.</li>
-            <li>Homem-morto: depende do mapa Modbus do inversor.</li>
-            <li>Liberação: hoje considera carro parado e nenhum alerta.</li>
+            <li>Pré-carga: campo dc_link_on e estado precharge.</li>
+            <li>Homem-morto: campo inv_inputs.dead_man.</li>
+            <li>Liberação: estado ready, sem alertas.</li>
           </ol>
         </Panel>
         <Panel title="Etiqueta da carenagem" note="Tela apagada">

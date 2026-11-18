@@ -1,9 +1,16 @@
-import { EFFICIENCY_CASES, LIMITS, MOTOR, PACK } from '../data/catalog'
+import { EFFICIENCY_CASES, INVERTER_STATES, LIMITS, MOTOR, PACK } from '../data/catalog'
 import { br, describe, has, kmh, rankedAlerts } from '../lib/telemetry'
 import { Bar, burnBands, cellPct, cellSpread, Chart, HealthStrip, Panel, Stat } from '../ui/kit'
 
 const WINDOW_S = 145
-const UNAVAILABLE_INPUTS = ['Emergência', 'BMS-OK', 'Homem-morto', 'Habilitação', 'Elo CC']
+const flag = (value, on, off) => (value === true ? on : value === false ? off : 'indisponível')
+const inverterInputs = (s) => [
+  ['Emergência', flag(s?.inv_inputs?.estop_closed, 'fechada', 'aberta')],
+  ['BMS-OK', flag(s?.inv_inputs?.bms_ok, 'ativo', 'falha')],
+  ['Homem-morto', flag(s?.inv_inputs?.dead_man, 'pressionado', 'solto')],
+  ['Habilitação', flag(s?.inv_inputs?.enable, 'ativa', 'inativa')],
+  ['Elo CC', flag(s?.dc_link_on, 'energizado', 'sem tensão')],
+]
 
 function Power({ s }) {
   const shaft = s ? (s.motor_torque * s.motor_rpm * 2 * Math.PI) / 60 : null
@@ -11,7 +18,7 @@ function Power({ s }) {
   const losses = has(shaft) && has(input) ? input - shaft : null
   const phases = [['idle', 'Parado'], ['burn', 'Motor ligado'], ['coast', 'Roda livre']]
   return (
-    <Panel title="Potência e segurança" note={`Estado: ${phases.find(([id]) => id === s?.drive_phase)?.[1] ?? 'sem dados'}`} className="span-power">
+    <Panel title="Potência e segurança" note={`Inversor: ${INVERTER_STATES[s?.inv_state] ?? 'indisponível'}${s?.inv_fault ? ` (${s.inv_fault})` : ''}`} className="span-power">
       <div className="steps">{phases.map(([id, label]) => <span key={id} className={s?.drive_phase === id ? 'on' : ''}>{label}</span>)}</div>
       <div className="tiles">
         <Stat label="Entrada DC" value={br(input, 0)} unit="W" />
@@ -27,7 +34,7 @@ function Power({ s }) {
         ))}
       </div>
       <h3>Entradas lidas pelo inversor</h3>
-      <div className="inputs">{UNAVAILABLE_INPUTS.map((name) => <div key={name}><span>{name}</span><em>indisponível</em></div>)}</div>
+      <div className="inputs">{inverterInputs(s).map(([name, value]) => <div key={name}><span>{name}</span><em className={value === 'indisponível' ? '' : 'known'}>{value}</em></div>)}</div>
     </Panel>
   )
 }
@@ -119,15 +126,17 @@ function Trends({ t }) {
 
 function Efficiency({ t }) {
   const alerts = rankedAlerts(t.latest)
+  const complete = t.latest?.km_per_kwh_complete !== false
   return (
-    <Panel title="Eficiência e alertas" note="km/kWh da sessão" className="span-eff">
+    <Panel title="Eficiência e alertas" note="km/kWh parcial" className="span-eff">
       <div className="row-between">
-        <strong className="hero-number">{t.latest?.km_per_kwh > 0 ? br(t.latest.km_per_kwh, 0) : '--'}</strong>
+        <strong className="hero-number">{complete && t.latest?.km_per_kwh > 0 ? br(t.latest.km_per_kwh, 0) : '--'}</strong>
         <div className="alert-list">
           {alerts.length === 0 && <span>Nenhum alerta ativo</span>}
           {alerts.slice(0, 3).map((a) => <span key={a.code} className={a.severity}>{a.code}</span>)}
         </div>
       </div>
+      <p className="small">{complete ? 'Oscila com a fase do ciclo até o fim da tentativa.' : 'Indisponível: sessão retomada em movimento ou com amostras perdidas.'}</p>
       <p className="muted small">Referências do modelo. As condições são diferentes.</p>
       <div className="ref-list">
         {EFFICIENCY_CASES.map((c) => <div key={c.name}><span>{c.name}</span><strong>{c.short}</strong></div>)}
