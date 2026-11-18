@@ -57,6 +57,32 @@ export function mechanicState(sample, stale) {
   return { step: 'CARRO PARADO', title: 'PODE LARGAR', note: 'Sem alertas ativos.', tone: 'go' }
 }
 
+const UNAVAILABLE = 'indisponível'
+const LINK_STATES = { ok: 'recebendo', lost: 'sinal perdido', waiting: 'aguardando quadros' }
+const BUS_NODES = [['acquisition', 'Nó 1 · aquisição'], ['inverter', 'Nó 2 · inversor'], ['bms', 'Nó 3 · BMS']]
+const withUnit = (value, digits, unit) => (has(value) ? `${br(value, digits)} ${unit}` : UNAVAILABLE)
+
+export function linkRows(status) {
+  const d = status?.available ? status.data : null
+  return [
+    ['Estado', LINK_STATES[d?.state] ?? UNAVAILABLE],
+    ['RSSI', withUnit(d?.rssi, 1, 'dBm')],
+    ['SNR', withUnit(d?.snr, 1, 'dB')],
+    ['Quadros perdidos', has(d?.lost) ? `${d.lost} (${br(d.loss_pct)} %)` : UNAVAILABLE],
+    ['Erros de CRC', has(d?.crc_errors) ? String(d.crc_errors) : UNAVAILABLE],
+  ]
+}
+
+export function nodeRows(status) {
+  const nodes = status?.available ? status.data?.nodes : null
+  return BUS_NODES.map(([id, label]) => {
+    const n = nodes?.[id]
+    if (!n) return [label, UNAVAILABLE]
+    const age = has(n.age_ms) ? `${br(n.age_ms, 0)} ms` : 'sem resposta'
+    return [label, `${n.online ? 'online' : 'offline'} · ${age} · ${n.errors} erros`]
+  })
+}
+
 export function boxState(frame, frameAge, bench) {
   if (bench) return { title: 'SEM SINAL', note: 'A bancada não transmite por LoRa.', tone: 'lost' }
   if (!frame || frameAge === null || frameAge > 3) {

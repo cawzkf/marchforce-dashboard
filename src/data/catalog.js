@@ -86,7 +86,7 @@ export const MODEL_PARAMETERS = [
 
 export const SIGNALS = [
   ['Energia', 'Tensão e corrente DC', 'vdc, idc', 'INA228 com shunt de 7,5 mΩ', 'Modbus, nó 1', 'contract'],
-  ['Energia', 'Corrente redundante', 'idc_aux (novo)', 'ACS758 com ADS1115', 'Modbus, nó 1', 'pending', 'Campo a criar'],
+  ['Energia', 'Corrente redundante', 'idc_aux', 'ACS758 com ADS1115', 'Modbus, nó 1', 'pending', 'Mapeado, hardware pendente'],
   ['Energia', 'Energia e km/kWh', 'energy_wh, km_per_kwh', 'Integração de vdc × idc', 'Processamento', 'computed'],
   ['Segurança', 'Elo CC energizado', 'dc_link_on', 'Optoacoplador 4N25', 'Modbus, nó 1', 'simulated'],
   ['Segurança', 'Emergência, BMS-OK, homem-morto', 'inv_inputs', 'Entradas cabeadas do inversor', 'Modbus, nó 2', 'simulated'],
@@ -101,6 +101,8 @@ export const SIGNALS = [
   ['Veículo', 'Velocidade e aceleração', 'velocity, acceleration', 'Hall da roda e MPU-6050', 'Modbus, nó 1', 'contract'],
   ['Veículo', 'Posição GNSS', 'lat, lon, gps_sats, gps_hdop', 'Módulo GPS', 'Modbus, nó 1', 'contract'],
   ['Rede', 'Idade e erros do barramento', 'bus_age_ms, bus_errors', 'Mestre Modbus', 'Computador de bordo', 'simulated'],
+  ['Rede', 'Saúde de cada nó', '/api/bus/health', 'Mestre Modbus', 'Computador de bordo', 'pending', 'Emulado, hardware pendente'],
+  ['Rádio', 'RSSI, SNR e quadros perdidos', '/api/lora/link', 'Receptor LoRa do box', 'Ponte USB do box', 'pending', 'Emulado, hardware pendente'],
   ['Isolação', 'Resistência de isolação', 'não existe', 'Sem monitor no esquemático', 'Sem caminho', 'none', 'Sem sensor'],
 ]
 

@@ -114,7 +114,7 @@ export default function App() {
       <SessionLine t={t} />
       <main className="page">
         {path === '/diagnostico' && <Diagnostico t={t} />}
-        {path === '/sinais' && <Sinais />}
+        {path === '/sinais' && <Sinais t={t} />}
         {path === '/eficiencia' && <Eficiencia />}
         {path === '/alertas' && <Alertas t={t} />}
         {path === '/displays' && <Displays t={t} href={href} />}

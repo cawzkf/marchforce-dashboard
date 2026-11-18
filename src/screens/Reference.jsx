@@ -1,7 +1,8 @@
 import { ALERTS, DATA_PATH, EFFICIENCY_CASES, MODEL_PARAMETERS, SIGNAL_STATUS, SIGNALS } from '../data/catalog'
+import { nodeRows } from '../lib/telemetry'
 import { Panel } from '../ui/kit'
 
-export function Sinais() {
+export function Sinais({ t }) {
   return (
     <div className="signals">
       <Panel title="Origem de cada dado" note="Esquemático rev. 3.0 e contrato de telemetria">
@@ -20,6 +21,9 @@ export function Sinais() {
         </div>
       </Panel>
       <div className="stack">
+        <Panel title="Saúde do barramento RS485" note="Estado, idade e erros">
+          <div className="kv node-health">{nodeRows(t.busHealth).map(([a, b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}</div>
+        </Panel>
         <Panel title="Caminho do dado" note="Da placa à tela">
           <ol className="path">{DATA_PATH.map(([a, b]) => <li key={a}><strong>{a}</strong><span>{b}</span></li>)}</ol>
         </Panel>

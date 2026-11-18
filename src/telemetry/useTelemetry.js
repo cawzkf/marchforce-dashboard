@@ -10,6 +10,9 @@ const FLUSH_MS = 250
 const STALE_S = 3
 const DEMO_FAULT_KEY = 'mf-demo-fault'
 const DEMO_DT = 0.1
+const STATUS_POLL_MS = 1000
+const NO_STATUS = { available: false, age_s: null, data: null }
+const DEMO_RADIO = { rssi: -92, snr: 7.5 }
 
 function emptyStore() {
   return { latest: null, series: [], receivedAt: null, startTs: null, events: [], active: new Set(), frames: [], frameAt: null, frameSession: null, lastSeq: 0 }
@@ -273,6 +276,44 @@ function useBench(enabled) {
   return state
 }
 
+function useStatus(path, enabled) {
+  const [state, setState] = useState(NO_STATUS)
+  useEffect(() => {
+    setState(NO_STATUS)
+    if (!enabled) return undefined
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const res = await fetch(path)
+        if (!res.ok) throw new Error(String(res.status))
+        const data = await res.json()
+        if (!cancelled) setState(data)
+      } catch {
+        if (!cancelled) setState(NO_STATUS)
+      }
+    }
+    poll()
+    const id = setInterval(poll, STATUS_POLL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [path, enabled])
+  return state
+}
+
+function demoLink(feed) {
+  if (!feed.latest) return NO_STATUS
+  const state = feed.age !== null && feed.age <= STALE_S ? 'ok' : 'lost'
+  return { available: true, age_s: 0, data: { state, ...DEMO_RADIO, received: feed.frames.length, lost: 0, crc_errors: 0, loss_pct: 0 } }
+}
+
+function demoBus(feed) {
+  if (!feed.latest || feed.age === null || feed.age > STALE_S) return NO_STATUS
+  const node = { online: true, age_ms: feed.latest.bus_age_ms, errors: feed.latest.bus_errors }
+  return { available: true, age_s: 0, data: { nodes: { acquisition: node, inverter: node, bms: node } } }
+}
+
 const NO_FAULT = { available: false, active: null, elapsed: null, error: 'Falha ao vivo só existe no simulador', start: async () => {}, clear: async () => {} }
 
 export function useTelemetry(mode) {
@@ -281,6 +322,8 @@ export function useTelemetry(mode) {
   const liveFault = useLiveFault(mode === 'sim')
   const demoFault = useDemoFault(demo)
   const benchState = useBench(!demo)
+  const liveLink = useStatus('/api/lora/link', mode === 'sim')
+  const liveBus = useStatus('/api/bus/health', mode === 'sim')
   const readFault = demoFault.read
   const [playback, setPlayback] = useState({ paused: false, speed: 1 })
   const playbackRef = useRef(playback)
@@ -331,5 +374,8 @@ export function useTelemetry(mode) {
   const stale = feed.age !== null && (feed.age > STALE_S || feed.latest?.alerts?.some((a) => a.code === 'E-COMM-STALE'))
   const injected = bench ? null : fault.active ?? feed.latest?.injected_fault ?? null
 
-  return { ...feed, mode, demo, bench, benchState, fault, stale, injected, faults: FAULTS, playback, setPlayback }
+  const link = demo ? demoLink(feed) : liveLink
+  const busHealth = demo ? demoBus(feed) : liveBus
+
+  return { ...feed, mode, demo, bench, benchState, fault, stale, injected, faults: FAULTS, playback, setPlayback, link, busHealth }
 }

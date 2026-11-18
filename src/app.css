@@ -216,7 +216,9 @@ button:disabled { cursor: not-allowed; }
 .box-cards span { font-size: 17px; color: var(--muted); font-weight: 500; }
 .box-cards strong { font: 700 54px/1 'League Spartan', sans-serif; white-space: nowrap; } .box-cards small { font: 500 18px Roboto, sans-serif; color: var(--muted); }
 .box-cards .stale strong { color: var(--muted); }
-.box-screen footer { display: grid; grid-template-columns: 860px 1fr 360px; gap: 12px; }
+.box-screen footer { display: grid; grid-template-columns: 680px 1fr 300px 360px; gap: 12px; }
+.box-link .kv { font-size: 17px; }
+.node-health strong { text-align: right; }
 .box-point { justify-content: flex-start; }
 .box-screen footer section { background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .box-last { justify-content: center; padding: 20px 22px !important; } .box-last span { color: var(--muted); font-size: 20px; font-weight: 500; } .box-last strong { font: 700 36px/1.15 'League Spartan', sans-serif; }

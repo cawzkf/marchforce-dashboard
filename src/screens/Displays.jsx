@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { LIMITS, RACE } from '../data/catalog'
 import track from '../data/track.json'
-import { boxState, br, clock, describe, faultInfo, has, kmh, mechanicState, pilotCommand, rankedAlerts, signalValue } from '../lib/telemetry'
+import { boxState, br, clock, describe, faultInfo, has, kmh, linkRows, mechanicState, pilotCommand, rankedAlerts, signalValue } from '../lib/telemetry'
 import { Chart, Fit, Panel, SimTag } from '../ui/kit'
 
 export function PilotDisplay({ t }) {
@@ -121,6 +121,15 @@ function FrameDetails({ frame }) {
   )
 }
 
+function LinkStatus({ status }) {
+  return (
+    <section className="box-link">
+      <h2>Enlace LoRa</h2>
+      <div className="kv">{linkRows(status).map(([a, b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}</div>
+    </section>
+  )
+}
+
 export function BoxDisplay({ t }) {
   const [selectedSeq, setSelectedSeq] = useState(null)
   const frames = t.frames
@@ -147,6 +156,7 @@ export function BoxDisplay({ t }) {
       <footer>
         <section><h2>Velocidade recebida pelo rádio</h2><Chart height={240} label="Velocidade recebida" x={[now - 145, now]} y={[0, 40]} grids={[[16, '16'], [33, '33']]} lines={[{ name: 'v', points }]} xLabels={[[now - 145, '145 s atrás'], [now - 8, 'agora']]} /></section>
         <FrameDetails frame={selected} />
+        <LinkStatus status={t.link} />
         <section className="box-last"><span>Último alerta recebido</span><strong className={state.code ? 'accent' : ''}>{state.code ?? (lost ? 'Sem dados novos' : 'Nenhum alerta')}</strong></section>
       </footer>
       <p className="muted">{t.bench ? 'Sessão de bancada.' : 'Dados simulados.'} O rádio só transmite do carro para o box.</p>
