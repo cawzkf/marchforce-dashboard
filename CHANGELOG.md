@@ -1,0 +1,15 @@
+# Changelog
+
+## v2.0.1
+
+- Operação e Piloto: o valor passa a se chamar km/kWh parcial, com aviso de oscilação pela fase do ciclo.
+- km/kWh fica indisponível em sessão retomada em movimento ou com amostras perdidas.
+- Mecânica: sequência de partida com `AGUARDE`, `PEÇA O HOMEM-MORTO` e `PODE LARGAR`, e alerta sem repetir a ordem.
+- Operação: entradas do inversor e elo CC vindos de `inv_inputs` e `dc_link_on`.
+- Diagnóstico: "Até o corte" mostra "corte atingido" depois do limite.
+- Requer o contrato da branch `feat/sim-fault-injection` do gêmeo.
+
+## v2.0.0
+
+- Telas de operação, diagnóstico, sinais, casos de eficiência, casos de alerta e displays.
+- Falha ao vivo, box com mapa e quadros LoRa, fonte de bancada e demo local.
