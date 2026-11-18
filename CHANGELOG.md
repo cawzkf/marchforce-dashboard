@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.0.3
+
+- Os rótulos seguem `data_source` enviado pelo backend: `DADOS SIMULADOS`, `DADOS MEDIDOS`, `DADOS EMULADOS` ou `origem indisponível`.
+- Com barramento ou bancada, valores fora de `measured_fields` aparecem como `(modelo)`.
+- Box usa a origem declarada em cada quadro LoRa.
+- Falha ao vivo fica disponível apenas com amostras do simulador.
+- Requer a branch `feat/telemetry-integration` do gêmeo.
+
 ## v2.0.2
 
 - Box: estado do enlace, RSSI, SNR, quadros perdidos e erros de CRC, vindos de `/api/lora/link`.
