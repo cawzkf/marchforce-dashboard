@@ -49,11 +49,11 @@ export function mechanicState(sample, stale) {
       tone: 'alert',
     }
   }
-  if (sample.data_source === 'bench') return { step: 'BANCADA', title: 'BANCADA', note: 'Medindo tensão e corrente.', tone: 'plain' }
+  if (sample.data_source === 'bench') return { step: 'SESSÃO SEPARADA', title: 'BANCADA', note: 'Medindo tensão e corrente.', tone: 'plain' }
   if (sample.inv_state === 'precharge') return { step: 'PASSO 1 DE 3', title: 'AGUARDE', note: 'Pré-carga em curso.', tone: 'plain' }
   if (sample.inv_state === 'wait_dead_man') return { step: 'PASSO 2 DE 3', title: 'PEÇA O HOMEM-MORTO', note: 'O piloto segura o comando no volante.', tone: 'plain' }
   if (sample.inv_state === 'ready') return { step: 'PASSO 3 DE 3', title: 'PODE LARGAR', note: 'Cadeia fechada e sem alertas.', tone: 'go' }
-  if (Number(sample.velocity) > 0.5) return { step: 'EM PROVA', title: 'EM PROVA', note: 'Sem alertas ativos.', tone: 'plain' }
+  if (Number(sample.velocity) > 0.5) return { step: 'CARRO EM MOVIMENTO', title: 'EM PROVA', note: 'Sem alertas ativos.', tone: 'plain' }
   return { step: 'CARRO PARADO', title: 'PODE LARGAR', note: 'Sem alertas ativos.', tone: 'go' }
 }
 
