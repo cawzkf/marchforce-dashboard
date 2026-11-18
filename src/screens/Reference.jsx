@@ -13,7 +13,7 @@ export function Sinais({ t }) {
               {SIGNALS.map(([domain, name, field, origin, path, kind, label]) => (
                 <tr key={name}>
                   <td className="muted">{domain}</td><td className="strong">{name}</td><td className="muted">{field}</td><td>{origin}</td><td className="muted">{path}</td>
-                  <td><span className="state"><i className={kind} />{label ?? SIGNAL_STATUS[kind]}</span></td>
+                  <td><span className="state"><i className={kind} />{kind === 'simulated' && t.source.signal ? t.source.signal : label ?? SIGNAL_STATUS[kind]}</span></td>
                 </tr>
               ))}
             </tbody>

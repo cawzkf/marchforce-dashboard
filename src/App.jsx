@@ -5,7 +5,7 @@ import Operacao from './screens/Operacao'
 import { Alertas, Eficiencia, Sinais } from './screens/Reference'
 import { useTelemetry } from './telemetry/useTelemetry'
 import { br, faultInfo } from './lib/telemetry'
-import { SimTag } from './ui/kit'
+import { SourceTag } from './ui/kit'
 
 const NAV = [
   ['/operacao', 'Operação'], ['/diagnostico', 'Diagnóstico'], ['/sinais', 'Sinais'],
@@ -31,13 +31,15 @@ function useRoute() {
 function FaultBar({ t, onSimulator }) {
   const { fault, faults } = t
   const current = faultInfo(fault.active)
+  const ready = fault.available && t.source.kind === 'simulated'
+  const blocked = t.latest && t.source.kind !== 'simulated' ? 'Falha ao vivo só existe no simulador' : fault.error ?? 'Indisponível'
   if (t.bench) {
     const lost = !t.benchState.online || t.stale
     return (
       <div className={`fault-bar ${lost ? 'active' : ''}`}>
         <strong>{lost ? 'SINAL DA BANCADA PERDIDO' : 'Bancada'}</strong>
         <span>{lost ? `Último heartbeat há ${br(t.benchState.age_s, 0)} s` : `${t.benchState.device ?? 'Nó de bancada'} · falha ao vivo só existe no simulador`}</span>
-        <div className="fault-buttons"><button type="button" className="normalize" onClick={onSimulator}>Voltar ao simulador</button></div>
+        <div className="fault-buttons"><button type="button" className="normalize" onClick={onSimulator}>Voltar à telemetria</button></div>
       </div>
     )
   }
@@ -46,10 +48,10 @@ function FaultBar({ t, onSimulator }) {
       <strong>{current ? 'FALHA INJETADA' : 'Falha ao vivo'}</strong>
       {current
         ? <span>{current.label} · {br(fault.elapsed, 0)} s · {current.effect}</span>
-        : <span className="muted">{fault.available ? 'Escolha um caso' : fault.error ?? 'Indisponível'}</span>}
+        : <span className="muted">{ready ? 'Escolha um caso' : blocked}</span>}
       <div className="fault-buttons">
         {faults.map((f) => (
-          <button type="button" key={f.id} disabled={!fault.available} className={fault.active === f.id ? 'on' : ''} title={f.effect} onClick={() => fault.start(f.id)}>{f.label}</button>
+          <button type="button" key={f.id} disabled={!ready} className={fault.active === f.id ? 'on' : ''} title={f.effect} onClick={() => fault.start(f.id)}>{f.label}</button>
         ))}
         <button type="button" className="normalize" disabled={!current} onClick={() => fault.clear()}>Normalizar</button>
       </div>
@@ -73,12 +75,12 @@ function Header({ route, t }) {
         ))}
       </nav>
       <div className="source" role="group" aria-label="Fonte de dados">
-        <button type="button" className={t.mode === 'sim' ? 'on' : ''} onClick={() => setMode('')}>Simulador</button>
+        <button type="button" className={t.mode === 'sim' ? 'on' : ''} onClick={() => setMode('')}>{t.mode === 'sim' ? t.source.feed : 'Ao vivo'}</button>
         <button type="button" className={t.demo ? 'on' : ''} onClick={() => setMode('?demo')}>Demo local</button>
         <button type="button" className={t.bench ? 'on' : ''} disabled={!bench.online && !t.bench} onClick={() => setMode('?fonte=bancada')}>Bancada<small>{benchNote}</small></button>
-        <button type="button" disabled>Veículo<small>sem hardware</small></button>
+        {t.latest?.data_source !== 'modbus' && <button type="button" disabled>Veículo<small>sem hardware</small></button>}
       </div>
-      <SimTag bench={t.bench} />
+      <SourceTag source={t.source} />
     </header>
   )
 }
@@ -88,7 +90,7 @@ function SessionLine({ t }) {
   return (
     <div className="session-line">
       <span>{s ? (t.bench ? `${s.session_id} · energia ${br(s.energy_wh, 3)} Wh` : `${s.session_id} · Volta ${Math.min(s.lap, 10)}/10 · ${br(s.distance / 1000, 2)} km`) : t.connected ? 'Aguardando amostras' : 'Sem conexão com a API. Use a Demo local para operar sem backend.'}</span>
-      <span className="muted">{t.bench ? 'Medido na bancada: tensão, corrente, potência e energia. Demais valores indisponíveis.' : 'Simulação do gêmeo digital. Nenhum valor foi medido no veículo.'}</span>
+      <span className="muted">{t.source.line}</span>
     </div>
   )
 }

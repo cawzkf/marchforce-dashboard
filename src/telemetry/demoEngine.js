@@ -174,6 +174,8 @@ export function createDemoEngine(startTime = Date.now() / 1000) {
       gps_fix: true,
       injected_fault: fault?.id ?? null,
       km_per_kwh_complete: true,
+      data_source: 'demo',
+      measured_fields: [],
       ...vehicleSignals(st.t, st.v, o, st.samples),
     }
     sample.alerts = evaluate(sample)

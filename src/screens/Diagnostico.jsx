@@ -1,10 +1,10 @@
 import { LIMITS, procedureFor } from '../data/catalog'
-import { br, clock, faultInfo, has, kmh, levelOf, secondsToLimit, signalValue, trend } from '../lib/telemetry'
+import { br, clock, faultInfo, fieldLabel, has, kmh, levelOf, secondsToLimit, signalValue, trend } from '../lib/telemetry'
 import { Chart, HealthStrip, Panel, Stat, topAlert } from '../ui/kit'
 
 const WINDOW_S = 90
 const SIGNAL_META = {
-  motor_temp: { title: 'Temperatura do motor: medida e modelo', unit: '°C', y: [20, 125] },
+  motor_temp: { title: 'Temperatura do motor: leitura e modelo', unit: '°C', y: [20, 125] },
   battery_temp: { title: 'Temperatura da bateria', unit: '°C', y: [20, 70] },
   controller_temp: { title: 'Temperatura do inversor', unit: '°C', y: [20, 100] },
   idc: { title: 'Corrente no barramento', unit: 'A', y: [0, 16] },
@@ -64,10 +64,10 @@ function SignalChart({ t, signal, event }) {
     <Panel title={meta.title} note="Últimos 90 s" className="diag-chart">
       <Chart height={306} label={meta.title} left={78} x={[horizon - WINDOW_S, horizon]} y={meta.y} grids={grids}
         vlines={event ? [[event.sample.timestamp, `Alerta ${clock(event.at)}`, 'crit']] : []}
-        lines={[{ name: 'medida', points, tone: 'thick' }, { name: 'modelo', points: model, tone: 'soft', dash: true }, { name: 'projecao', points: projection, tone: 'crit', dash: true }]}
+        lines={[{ name: 'leitura', points, tone: 'thick' }, { name: 'modelo', points: model, tone: 'soft', dash: true }, { name: 'projecao', points: projection, tone: 'crit', dash: true }]}
         dots={[[now, value, 'crit']]} xLabels={[[horizon - WINDOW_S, '90 s'], [now, 'agora']]} />
       <div className="legend">
-        <span>Linha cheia: medida</span>
+        <span>{fieldLabel(t.latest, 'Linha cheia: leitura', signal)}</span>
         {model.length > 0 && <span className="muted">Tracejada cinza: gêmeo digital, {br(t.latest.motor_temp_model)} °C</span>}
         {projection.length > 0 && <span className="accent">Tracejada laranja: projeção</span>}
         {model.length > 0 && <strong>Desvio atual: {br(t.latest.motor_temp - t.latest.motor_temp_model)} K</strong>}
@@ -80,10 +80,10 @@ function Snapshot({ event }) {
   const s = event?.sample
   const rows = s ? [
     ['Fase', { burn: 'Motor ligado', coast: 'Roda livre', idle: 'Parado' }[s.drive_phase] ?? 'indisponível'],
-    ['Velocidade', `${br(kmh(s.velocity))} km/h`], ['Rotação', `${br(s.motor_rpm, 0)} rpm`],
-    ['Torque (modelo)', `${br(s.motor_torque, 2)} N·m`], ['Barramento', `${br(s.vdc)} V · ${br(s.idc, 2)} A`],
-    ['Potência', `${br(s.electrical_power, 0)} W`], ['Motor', `${br(s.motor_temp)} °C`],
-    ['Inversor', `${br(s.controller_temp)} °C`], ['Bateria', `${br(s.battery_temp)} °C`],
+    [fieldLabel(s, 'Velocidade', 'velocity'), `${br(kmh(s.velocity))} km/h`], [fieldLabel(s, 'Rotação', 'motor_rpm'), `${br(s.motor_rpm, 0)} rpm`],
+    ['Torque (modelo)', `${br(s.motor_torque, 2)} N·m`], [fieldLabel(s, 'Barramento', 'vdc'), `${br(s.vdc)} V · ${br(s.idc, 2)} A`],
+    [fieldLabel(s, 'Potência', 'electrical_power'), `${br(s.electrical_power, 0)} W`], [fieldLabel(s, 'Motor', 'motor_temp'), `${br(s.motor_temp)} °C`],
+    [fieldLabel(s, 'Inversor', 'controller_temp'), `${br(s.controller_temp)} °C`], [fieldLabel(s, 'Bateria', 'battery_temp'), `${br(s.battery_temp)} °C`],
   ] : []
   return (
     <Panel title="Instantâneo no alerta" note={event ? `${clock(event.at)}${s.lap ? ` · volta ${s.lap}` : ''}` : ''}>
@@ -107,15 +107,15 @@ function Evidence({ t, current }) {
   if (motorAlert && flagged === 0) conclusion = 'Corrente, tensão e demais temperaturas estão normais. Conferir a leitura da sonda e a dissipação do motor.'
   if (current.alert.code === 'E-COMM-STALE') conclusion = 'A API não recebe amostras. Os valores são da última amostra recebida.'
   return (
-    <Panel title="Evidências" note="Medido e referência">
+    <Panel title="Evidências" note="Valor e referência">
       <table className="table">
-        <thead><tr><th>Sinal</th><th>Medido</th><th>Referência</th><th>Leitura</th></tr></thead>
+        <thead><tr><th>Sinal</th><th>Valor</th><th>Referência</th><th>Leitura</th></tr></thead>
         <tbody>
           {rows.map(([key, name, v, unit, ref]) => {
             const level = levelOf(key, v)
-            return <tr key={key}><td>{name}</td><td>{br(v, unit === 'A' ? 2 : 1)} {unit}</td><td>{ref}</td><td className={['warn', 'crit'].includes(level) ? 'accent strong' : ''}>{LEVEL_TEXT[level]}</td></tr>
+            return <tr key={key}><td>{fieldLabel(s, name, key)}</td><td>{br(v, unit === 'A' ? 2 : 1)} {unit}</td><td>{ref}</td><td className={['warn', 'crit'].includes(level) ? 'accent strong' : ''}>{LEVEL_TEXT[level]}</td></tr>
           })}
-          <tr><td>Motor</td><td>{br(s.motor_temp)} °C</td><td>{br(s.motor_temp_model)} °C (modelo)</td><td className={Math.abs(residual) > 10 ? 'accent strong' : ''}>{residual >= 0 ? '+' : ''}{br(residual)} K</td></tr>
+          <tr><td>{fieldLabel(s, 'Motor', 'motor_temp')}</td><td>{br(s.motor_temp)} °C</td><td>{br(s.motor_temp_model)} °C (modelo)</td><td className={Math.abs(residual) > 10 ? 'accent strong' : ''}>{residual >= 0 ? '+' : ''}{br(residual)} K</td></tr>
         </tbody>
       </table>
       <h3>Conclusão</h3>

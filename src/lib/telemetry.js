@@ -58,6 +58,33 @@ export function mechanicState(sample, stale) {
 }
 
 const UNAVAILABLE = 'indisponível'
+const NOT_MEASURED = 'Nenhum valor foi medido no veículo.'
+const MODEL_NOTE = 'Valores calculados aparecem como (modelo).'
+const SIMULATED = { kind: 'simulated', label: 'DADOS SIMULADOS', short: 'SIMULADO', note: 'Simulada, hardware pendente', signal: null }
+const MEASURED = { kind: 'measured', label: 'DADOS MEDIDOS', short: 'MEDIDO', note: 'Lida do inversor', signal: 'Lido do barramento' }
+const EMULATED = { kind: 'emulated', label: 'DADOS EMULADOS', short: 'EMULADO', note: 'Emulada, hardware pendente', signal: 'Emulado' }
+const SOURCES = {
+  simulator: { ...SIMULATED, feed: 'Simulador', line: `Simulação do gêmeo digital. ${NOT_MEASURED}` },
+  carla: { ...SIMULATED, feed: 'CARLA', line: `Simulação no CARLA. ${NOT_MEASURED}` },
+  demo: { ...SIMULATED, feed: 'Ao vivo', line: `Demo local no navegador. ${NOT_MEASURED}` },
+  modbus: { ...MEASURED, feed: 'Veículo', line: `Medido pelo barramento RS485. ${MODEL_NOTE}` },
+  modbus_emulated: { ...EMULATED, feed: 'Emulador', line: `Nós Modbus emulados. ${NOT_MEASURED} ${MODEL_NOTE}` },
+  bench: { ...MEASURED, short: 'BANCADA', feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: 'Medido na bancada: tensão, corrente, potência e energia. Demais valores indisponíveis.' },
+  bench_emulated: { ...EMULATED, feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: `Bancada emulada: tensão, corrente, potência e energia. ${NOT_MEASURED}` },
+  lora_radio: { ...MEASURED, feed: 'Veículo', line: 'Recebido pelo rádio LoRa do carro.' },
+  lora_emulated: { ...EMULATED, feed: 'Emulador', line: `Rádio LoRa emulado. ${NOT_MEASURED}` },
+}
+const UNKNOWN_SOURCE = { kind: 'unknown', label: 'origem indisponível', short: 'origem indisponível', feed: 'Ao vivo', note: 'origem indisponível', signal: 'origem indisponível', line: 'Origem dos dados indisponível.' }
+
+export const sourceInfo = (id) => SOURCES[id] ?? UNKNOWN_SOURCE
+export const readsHardwarePath = (source) => source.kind === 'measured' || source.kind === 'emulated'
+
+export function fieldLabel(sample, label, field) {
+  if (!sample || !readsHardwarePath(sourceInfo(sample.data_source))) return label
+  if (sample[field] === null || sample[field] === undefined) return label
+  return (sample.measured_fields ?? []).includes(field) ? label : `${label} (modelo)`
+}
+
 const LINK_STATES = { ok: 'recebendo', lost: 'sinal perdido', waiting: 'aguardando quadros' }
 const BUS_NODES = [['acquisition', 'Nó 1 · aquisição'], ['inverter', 'Nó 2 · inversor'], ['bms', 'Nó 3 · BMS']]
 const withUnit = (value, digits, unit) => (has(value) ? `${br(value, digits)} ${unit}` : UNAVAILABLE)

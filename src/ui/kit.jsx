@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { LIMITS, PACK } from '../data/catalog'
-import { br, describe, has, levelOf, rankedAlerts, signalValue } from '../lib/telemetry'
+import { br, describe, fieldLabel, has, levelOf, rankedAlerts, signalValue } from '../lib/telemetry'
 
 export function useSize() {
   const ref = useRef(null)
@@ -47,8 +47,8 @@ export function Stat({ label, value, unit }) {
   )
 }
 
-export function SimTag({ bench }) {
-  return <span className={`sim-tag ${bench ? 'bench' : ''}`}><i />{bench ? 'MEDIDO NA BANCADA' : 'DADOS SIMULADOS'}</span>
+export function SourceTag({ source }) {
+  return <span className={`sim-tag ${source.kind === 'measured' ? 'bench' : ''}`}><i />{source.label}</span>
 }
 
 export function Chart({ height, x, y, lines = [], grids = [], bands = [], vlines = [], dots = [], xLabels = [], left = 58, label }) {
@@ -103,6 +103,8 @@ export function burnBands(series) {
   return bands
 }
 
+const HEALTH_FIELDS = { Bateria: 'battery_temp', Inversor: 'controller_temp', Motor: 'motor_temp', 'Barramento DC': 'vdc' }
+
 function status(label, state, detail, alert) {
   return { label, state, detail, alert }
 }
@@ -136,7 +138,7 @@ export function HealthStrip({ t }) {
     <div className="health">
       {items.map((i) => (
         <div key={i.label} className={`health-cell ${i.alert ? 'alert' : ''}`}>
-          <div><span>{i.label}</span><strong>{i.state}</strong></div>
+          <div><span>{fieldLabel(s, i.label, HEALTH_FIELDS[i.label])}</span><strong>{i.state}</strong></div>
           <small>{i.detail}</small>
         </div>
       ))}

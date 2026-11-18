@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FAULT_MAX_S, FAULTS } from '../data/catalog'
-import { rankedAlerts } from '../lib/telemetry'
+import { rankedAlerts, sourceInfo } from '../lib/telemetry'
 import { createDemoEngine, staleAlert } from './demoEngine'
 
 const SERIES_STEP_S = 0.5
@@ -137,6 +137,7 @@ function demoFrame(sample, seq) {
   return {
     seq,
     sid: sample.session_id,
+    data_source: sample.data_source,
     t: sample.timestamp,
     velocity: sample.velocity,
     soc: sample.soc,
@@ -374,8 +375,9 @@ export function useTelemetry(mode) {
   const stale = feed.age !== null && (feed.age > STALE_S || feed.latest?.alerts?.some((a) => a.code === 'E-COMM-STALE'))
   const injected = bench ? null : fault.active ?? feed.latest?.injected_fault ?? null
 
+  const source = sourceInfo(feed.latest?.data_source)
   const link = demo ? demoLink(feed) : liveLink
   const busHealth = demo ? demoBus(feed) : liveBus
 
-  return { ...feed, mode, demo, bench, benchState, fault, stale, injected, faults: FAULTS, playback, setPlayback, link, busHealth }
+  return { ...feed, mode, demo, bench, benchState, fault, stale, injected, faults: FAULTS, playback, setPlayback, link, busHealth, source }
 }

@@ -1,5 +1,5 @@
 import { EFFICIENCY_CASES, INVERTER_STATES, LIMITS, MOTOR, PACK } from '../data/catalog'
-import { br, describe, has, kmh, rankedAlerts } from '../lib/telemetry'
+import { br, describe, fieldLabel, has, kmh, rankedAlerts } from '../lib/telemetry'
 import { Bar, burnBands, cellPct, cellSpread, Chart, HealthStrip, Panel, Stat } from '../ui/kit'
 
 const WINDOW_S = 145
@@ -21,12 +21,12 @@ function Power({ s }) {
     <Panel title="Potência e segurança" note={`Inversor: ${INVERTER_STATES[s?.inv_state] ?? 'indisponível'}${s?.inv_fault ? ` (${s.inv_fault})` : ''}`} className="span-power">
       <div className="steps">{phases.map(([id, label]) => <span key={id} className={s?.drive_phase === id ? 'on' : ''}>{label}</span>)}</div>
       <div className="tiles">
-        <Stat label="Entrada DC" value={br(input, 0)} unit="W" />
+        <Stat label={fieldLabel(s, 'Entrada DC', 'electrical_power')} value={br(input, 0)} unit="W" />
         <Stat label="No eixo (modelo)" value={br(shaft, 0)} unit="W" />
         <Stat label="Perdas (modelo)" value={br(losses, 0)} unit="W" />
         <Stat label="Eficiência (modelo)" value={input > 5 ? br((shaft / input) * 100) : '--'} unit="%" />
       </div>
-      <div className="row-between"><h3>Corrente no barramento e proteções</h3><strong className="value-lg">{br(s?.idc, 2)} A</strong></div>
+      <div className="row-between"><h3>{fieldLabel(s, 'Corrente no barramento e proteções', 'idc')}</h3><strong className="value-lg">{br(s?.idc, 2)} A</strong></div>
       <div className="ladder">
         <Bar value={Math.abs(s?.idc ?? 0)} max={16} />
         {[[7, 'operação'], [10, 'inversor'], [12, 'BMS'], [15, 'fusível']].map(([a, name]) => (
@@ -50,7 +50,7 @@ function OperatingPoint({ s }) {
         dots={running ? [[s.motor_rpm, s.motor_torque]] : []}
         xLabels={[[0, '0'], [1000, '1.000'], [2000, '2.000'], [3000, '3.000 rpm']]} />
       <div className="stats-row">
-        <Stat label="Rotação" value={br(s?.motor_rpm, 0)} unit="rpm" />
+        <Stat label={fieldLabel(s, 'Rotação', 'motor_rpm')} value={br(s?.motor_rpm, 0)} unit="rpm" />
         <Stat label="Torque (modelo)" value={br(s?.motor_torque, 2)} unit="N·m" />
         <Stat label="Rendimento (modelo)" value={br((s?.motor_efficiency ?? NaN) * 100)} unit="%" />
       </div>
@@ -63,11 +63,11 @@ function Battery({ s }) {
   return (
     <Panel title="Bateria 15S e temperaturas" note="LiFePO4 · 6 Ah" className="span-battery">
       <div className="stats-row">
-        <Stat label="Estado de carga" value={br((s?.soc ?? NaN) * 100)} unit="%" />
-        <Stat label="Energia usada" value={`${br(s?.energy_wh)} de ${PACK.energyWh}`} unit="Wh" />
-        <Stat label="Dispersão de células" value={br(cellSpread(s), 0)} unit="mV" />
+        <Stat label={fieldLabel(s, 'Estado de carga', 'soc')} value={br((s?.soc ?? NaN) * 100)} unit="%" />
+        <Stat label={fieldLabel(s, 'Energia usada', 'energy_wh')} value={`${br(s?.energy_wh)} de ${PACK.energyWh}`} unit="Wh" />
+        <Stat label={fieldLabel(s, 'Dispersão de células', 'cell_voltage_max')} value={br(cellSpread(s), 0)} unit="mV" />
       </div>
-      <h3>Tensão de célula: mínima, média e máxima</h3>
+      <h3>{fieldLabel(s, 'Tensão de célula: mínima, média e máxima', 'cell_voltage_avg')}</h3>
       <div className="cell-scale">
         <div>{has(s?.cell_voltage_avg) && <><i style={{ left: cellPct(s.cell_voltage_min), right: `calc(100% - ${cellPct(s.cell_voltage_max)})` }} /><b style={{ left: cellPct(s.cell_voltage_avg) }} /></>}</div>
         <span>2,50 V</span>
@@ -80,7 +80,7 @@ function Battery({ s }) {
           const scale = l.crit * 1.1
           return (
             <div key={key}>
-              <span>{l.label}</span>
+              <span>{fieldLabel(s, l.label, key)}</span>
               <Bar value={s?.[key] ?? 0} max={scale} marks={[[l.warn, 'warn-mark'], [l.crit, 'crit-mark']]} />
               <strong>{br(s?.[key])} °C</strong>
               <small>aviso {l.warn} · corte {l.crit}</small>
@@ -114,10 +114,10 @@ function Trends({ t }) {
   const labels = [[now - WINDOW_S, '145 s atrás'], [now - 72, '72 s'], [now - 10, 'agora']]
   return (
     <Panel title="Velocidade e potência" note="Janela de 145 s" actions={<Playback t={t} />} className="span-trends">
-      <h3>Velocidade</h3>
+      <h3>{fieldLabel(t.latest, 'Velocidade', 'velocity')}</h3>
       <Chart height={150} label="Velocidade" x={x} y={[0, 40]} left={70} bands={bands} grids={[[16, '16'], [33, '33 km/h']]}
         lines={[{ name: 'velocidade', points: speed }]} dots={[[now, kmh(t.latest?.velocity)]]} xLabels={labels} />
-      <h3>Potência elétrica no barramento</h3>
+      <h3>{fieldLabel(t.latest, 'Potência elétrica no barramento', 'electrical_power')}</h3>
       <Chart height={128} label="Potência elétrica" x={x} y={[0, 620]} left={70} bands={bands} grids={[[200, '200'], [400, '400 W']]}
         lines={[{ name: 'potencia', points: power }]} dots={[[now, t.latest?.electrical_power]]} xLabels={labels} />
     </Panel>
@@ -128,7 +128,7 @@ function Efficiency({ t }) {
   const alerts = rankedAlerts(t.latest)
   const complete = t.latest?.km_per_kwh_complete !== false
   return (
-    <Panel title="Eficiência e alertas" note="km/kWh parcial" className="span-eff">
+    <Panel title="Eficiência e alertas" note={fieldLabel(t.latest, 'km/kWh parcial', 'km_per_kwh')} className="span-eff">
       <div className="row-between">
         <strong className="hero-number">{complete && t.latest?.km_per_kwh > 0 ? br(t.latest.km_per_kwh, 0) : '--'}</strong>
         <div className="alert-list">

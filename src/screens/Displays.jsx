@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { LIMITS, RACE } from '../data/catalog'
 import track from '../data/track.json'
-import { boxState, br, clock, describe, faultInfo, has, kmh, linkRows, mechanicState, pilotCommand, rankedAlerts, signalValue } from '../lib/telemetry'
-import { Chart, Fit, Panel, SimTag } from '../ui/kit'
+import { boxState, br, clock, describe, faultInfo, fieldLabel, has, kmh, linkRows, mechanicState, pilotCommand, rankedAlerts, readsHardwarePath, signalValue, sourceInfo } from '../lib/telemetry'
+import { Chart, Fit, Panel, SourceTag } from '../ui/kit'
+
+const frameBatteryLabel = (frame) => (readsHardwarePath(sourceInfo(frame?.data_source)) ? 'Bateria (modelo)' : 'Bateria')
 
 export function PilotDisplay({ t }) {
   const s = t.latest
@@ -16,7 +18,7 @@ export function PilotDisplay({ t }) {
       <div className={`pilot-top ${alertTop ? 'alert' : ''}`}>
         <span>{alertTop ? 'ALERTA' : `Volta ${Math.min(s?.lap ?? 1, RACE.laps)}/${RACE.laps}`}</span>
         <span>{clock(t.elapsed)} de 25:00</span>
-        <span className="pilot-tag">{t.injected ? 'FALHA INJETADA' : t.bench ? 'BANCADA' : 'SIMULADO'}</span>
+        <span className="pilot-tag">{t.injected ? 'FALHA INJETADA' : t.source.short}</span>
       </div>
       <div className="pilot-main">
         <div className="pilot-speed"><strong>{speed === null ? '--' : Math.round(speed)}</strong><span>km/h</span></div>
@@ -27,11 +29,11 @@ export function PilotDisplay({ t }) {
         {[[0, '0'], [40, '16'], [82.5, '33'], [100, '40']].map(([left, label]) => <span key={label} style={{ left: `${left}%` }}>{label}</span>)}
       </div>
       <div className="pilot-stats">
-        <div><span>Energia</span><strong>{br(s?.energy_wh)} Wh</strong></div>
-        <div><span>Bateria</span><strong>{br((s?.soc ?? NaN) * 100, 0)} %</strong></div>
+        <div><span>{fieldLabel(s, 'Energia', 'energy_wh')}</span><strong>{br(s?.energy_wh)} Wh</strong></div>
+        <div><span>{fieldLabel(s, 'Bateria', 'soc')}</span><strong>{br((s?.soc ?? NaN) * 100, 0)} %</strong></div>
         {info
-          ? <div><span>{LIMITS[info.signal].label}</span><strong>{br(signalValue(s, info.signal), 0)} {LIMITS[info.signal].unit}</strong></div>
-          : <div><span>km/kWh parcial</span><strong>{s?.km_per_kwh_complete !== false && s?.km_per_kwh > 0 ? br(s.km_per_kwh, 0) : '--'}</strong></div>}
+          ? <div><span>{fieldLabel(s, LIMITS[info.signal].label, info.signal)}</span><strong>{br(signalValue(s, info.signal), 0)} {LIMITS[info.signal].unit}</strong></div>
+          : <div><span>{fieldLabel(s, 'km/kWh parcial', 'km_per_kwh')}</span><strong>{s?.km_per_kwh_complete !== false && s?.km_per_kwh > 0 ? br(s.km_per_kwh, 0) : '--'}</strong></div>}
       </div>
     </div>
   )
@@ -42,12 +44,12 @@ export function MechanicDisplay({ t }) {
   const state = mechanicState(s, t.stale)
   return (
     <div className={`mechanic ${state.tone}`}>
-      <div className="mechanic-step"><span>{state.step}</span><span>{t.injected ? 'FALHA INJETADA' : t.bench ? 'BANCADA' : 'SIMULADO'}</span></div>
+      <div className="mechanic-step"><span>{state.step}</span><span>{t.injected ? 'FALHA INJETADA' : t.source.short}</span></div>
       <div className="mechanic-order"><strong className={state.title.length > 12 ? 'long' : ''}>{state.title}</strong><span>{state.note}</span></div>
       <div className="mechanic-values">
-        <div><span>Tensão DC</span><strong>{br(s?.vdc)} V</strong></div>
-        <div><span>Motor</span><strong>{br(s?.motor_temp)} °C</strong></div>
-        <div><span>Inversor</span><strong>{br(s?.controller_temp)} °C</strong></div>
+        <div><span>{fieldLabel(s, 'Tensão DC', 'vdc')}</span><strong>{br(s?.vdc)} V</strong></div>
+        <div><span>{fieldLabel(s, 'Motor', 'motor_temp')}</span><strong>{br(s?.motor_temp)} °C</strong></div>
+        <div><span>{fieldLabel(s, 'Inversor', 'controller_temp')}</span><strong>{br(s?.controller_temp)} °C</strong></div>
       </div>
     </div>
   )
@@ -111,7 +113,7 @@ function FrameDetails({ frame }) {
     ['Horário', new Date(frame.t * 1000).toLocaleTimeString('pt-BR', { hour12: false })], ['Volta', frame.lap ?? 'indisponível'],
     ['Velocidade', `${br(kmh(frame.velocity))} km/h`], ['Potência', `${br(frame.vdc * frame.idc, 0)} W`],
     ['Tensão', `${br(frame.vdc)} V`], ['Corrente', `${br(frame.idc, 2)} A`],
-    ['Bateria', `${br(frame.soc * 100)} %`], ['Alerta', frame.alert ?? 'nenhum'],
+    [frameBatteryLabel(frame), `${br(frame.soc * 100)} %`], ['Alerta', frame.alert ?? 'nenhum'],
   ] : []
   return (
     <section className="box-point">
@@ -135,17 +137,18 @@ export function BoxDisplay({ t }) {
   const frames = t.frames
   const f = frames[frames.length - 1]
   const state = boxState(f, t.frameAge, t.bench)
+  const source = f ? sourceInfo(f.data_source) : t.source
   const lost = state.tone === 'lost'
   const selected = frames.find((x) => x.seq === selectedSeq) ?? null
   const now = f?.t ?? 0
   const points = frames.slice(-145).map((p) => [p.t, kmh(p.velocity)])
   const cards = [
-    ['Velocidade', br(kmh(f?.velocity)), 'km/h'], ['Potência elétrica', f ? br(f.vdc * f.idc, 0) : '--', 'W'], ['Bateria', br((f?.soc ?? NaN) * 100), '%'],
+    ['Velocidade', br(kmh(f?.velocity)), 'km/h'], ['Potência elétrica', f ? br(f.vdc * f.idc, 0) : '--', 'W'], [frameBatteryLabel(f), br((f?.soc ?? NaN) * 100), '%'],
     ['Tensão DC', br(f?.vdc), 'V'], ['Corrente DC', br(f?.idc, 2), 'A'], ['Último quadro', br(t.frameAge), 's'],
   ]
   return (
     <div className="box-screen">
-      <header><div className="brand"><img src="/logo-mark.png" alt="" /><strong>MACHFORCE</strong><span>Box · rádio LoRa 915 MHz · 1 quadro por segundo · {frames.length} quadros na sessão</span></div><div className="box-tags">{t.injected && <span className="injected-tag">FALHA INJETADA</span>}<SimTag bench={t.bench} /></div></header>
+      <header><div className="brand"><img src="/logo-mark.png" alt="" /><strong>MACHFORCE</strong><span>Box · rádio LoRa 915 MHz · 1 quadro por segundo · {frames.length} quadros na sessão</span></div><div className="box-tags">{t.injected && <span className="injected-tag">FALHA INJETADA</span>}<SourceTag source={source} /></div></header>
       <main>
         <section className={`box-action ${state.tone}`}><span>AÇÃO</span><strong>{state.title}</strong><p>{state.note}</p></section>
         <BoxMap frames={frames} selected={selected} onSelect={setSelectedSeq} lost={lost} />
@@ -159,7 +162,7 @@ export function BoxDisplay({ t }) {
         <LinkStatus status={t.link} />
         <section className="box-last"><span>Último alerta recebido</span><strong className={state.code ? 'accent' : ''}>{state.code ?? (lost ? 'Sem dados novos' : 'Nenhum alerta')}</strong></section>
       </footer>
-      <p className="muted">{t.bench ? 'Sessão de bancada.' : 'Dados simulados.'} O rádio só transmite do carro para o box.</p>
+      <p className="muted">{source.line} O rádio só transmite do carro para o box.</p>
     </div>
   )
 }
@@ -188,7 +191,7 @@ export function Displays({ t, href }) {
         </Panel>
       </div>
       <div className="display-notes">
-        <Panel title="Sequência de partida" note="Simulada, hardware pendente">
+        <Panel title="Sequência de partida" note={t.source.note}>
           <ol className="steps-list">
             <li>Pré-carga: campo dc_link_on e estado precharge.</li>
             <li>Homem-morto: campo inv_inputs.dead_man.</li>
