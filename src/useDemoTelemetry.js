@@ -180,10 +180,10 @@ function alertsFor(s, sample) {
   const add = (code, severity, message, value) => out.push({ code, severity, message, value })
   if (sample.soc < 0.15) add('E-SOC-CRITICAL', 'error', 'Estado de carga crítico', +(sample.soc * 100).toFixed(1))
   else if (sample.soc < 0.3) add('W-SOC-LOW', 'warning', 'Estado de carga baixo', +(sample.soc * 100).toFixed(1))
-  if (sample.idc > 30) add('E-IDC-OVERCURRENT', 'error', 'Sobrecorrente no barramento DC', +sample.idc.toFixed(1))
-  else if (sample.idc > 11) add('W-IDC-HIGH', 'warning', 'Corrente DC elevada', +sample.idc.toFixed(1))
+  if (sample.idc >= 12) add('E-IDC-OVERCURRENT', 'error', 'Corrente DC no limite de corte do BMS', +sample.idc.toFixed(1))
+  else if (sample.idc >= 10) add('W-IDC-HIGH', 'warning', 'Corrente DC no limite do inversor', +sample.idc.toFixed(1))
   const thermal = [
-    ['motor_temp', 'W-MOTOR-TEMP', 'E-MOTOR-OVERTEMP', 'do motor', 90, 125],
+    ['motor_temp', 'W-MOTOR-TEMP', 'E-MOTOR-OVERTEMP', 'do motor', 90, 110],
     ['controller_temp', 'W-CTRL-TEMP', 'E-CTRL-OVERTEMP', 'do controlador', 70, 85],
     ['battery_temp', 'W-BATT-TEMP', 'E-BATT-OVERTEMP', 'da bateria', 45, 60],
   ]

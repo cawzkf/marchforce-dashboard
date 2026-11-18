@@ -23,7 +23,7 @@ export function clock(seconds) {
 
 export const THERMAL = {
   battery_temp: { label: 'Bateria', warn: 45, crit: 60, max: 70 },
-  motor_temp: { label: 'Motor', warn: 90, crit: 125, max: 140 },
+  motor_temp: { label: 'Motor', warn: 90, crit: 110, max: 125 },
   controller_temp: { label: 'Controlador', warn: 70, crit: 85, max: 100 },
   ambient_temp: { label: 'Ambiente', max: 50 },
 }
