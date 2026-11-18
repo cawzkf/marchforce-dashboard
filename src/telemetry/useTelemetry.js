@@ -36,6 +36,12 @@ function ingest(store, sample) {
 }
 
 function addFrames(store, frames, session, ageS, lastSeq) {
+  if (lastSeq < store.lastSeq) {
+    store.frames = []
+    store.frameSession = null
+    store.lastSeq = 0
+    return
+  }
   if (session !== store.frameSession) {
     store.frameSession = session
     store.frames = []
