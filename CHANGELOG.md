@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.0.2
+
+- Box: estado do enlace, RSSI, SNR, quadros perdidos e erros de CRC, vindos de `/api/lora/link`.
+- Sinais: saúde dos nós 1, 2 e 3 com estado, idade e erros, vinda de `/api/bus/health`.
+- Sem dado recente, esses campos mostram "indisponível".
+- Demo local: enlace e nós com valores emulados, sem backend.
+- Requer a branch `feat/telemetry-integration` do gêmeo.
+
 ## v2.0.1
 
 - Operação e Piloto: o valor passa a se chamar km/kWh parcial, com aviso de oscilação pela fase do ciclo.
