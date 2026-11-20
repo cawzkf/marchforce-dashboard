@@ -103,11 +103,6 @@ export default function App() {
   const path = route.path === '/' ? '/operacao' : route.path
   const href = (target) => `${target}${route.search}`
 
-  useEffect(() => {
-    const label = NAV.find(([p]) => p === path)?.[1] ?? { '/piloto': 'Piloto', '/mecanica': 'Mecânica', '/box': 'Box' }[path] ?? 'Operação'
-    document.title = `MachForce · ${label}`
-  }, [path])
-
   if (FULL[path]) return <FullDisplay name={FULL[path]} t={t} />
   return (
     <div className="app">

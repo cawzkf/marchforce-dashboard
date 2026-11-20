@@ -101,6 +101,12 @@ button:disabled { cursor: not-allowed; }
 .playback { display: flex; gap: 8px; align-items: center; }
 .playback .btn { min-height: 36px; } .playback .seg button { min-height: 34px; }
 .hero-number { font-size: 62px; line-height: 1; }
+.strategy-seg button { flex: 1; min-height: 44px; font-size: 14px; }
+.strategy-seg button:disabled { color: #777; }
+.strategy-values { align-items: flex-end; }
+.strategy-main { display: flex; flex-direction: column; gap: 4px; }
+.strategy-other { align-items: flex-end; text-align: right; }
+.strategy-other strong { font-size: 30px; }
 .alert-list { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-weight: 500; }
 .alert-list .error, .alert-list .warning { color: var(--accent); }
 .ref-list div, .kv div { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 38px; border-top: 1px solid var(--line); }

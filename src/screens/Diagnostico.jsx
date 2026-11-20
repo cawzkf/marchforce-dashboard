@@ -156,7 +156,7 @@ export default function Diagnostico({ t }) {
       {!t.latest && <Panel title="Diagnóstico"><p className="muted">Aguardando amostras.</p></Panel>}
       {t.latest && !current && (
         <div className="diag-top">
-          <Panel title="Diagnóstico" note="Sem alerta ativo"><p className="empty-title">Nenhum alerta ativo</p><p className="muted">{fault ? `${fault.label}: aguardando o primeiro limite.` : 'Todos os sinais estão dentro dos limites.'}</p></Panel>
+          <Panel title="Diagnóstico" note="Sem alerta ativo"><p className="empty-title">Nenhum alerta ativo</p><p className="muted">{fault ? `Falha injetada (${fault.label}). Nenhum sinal chegou ao primeiro limite.` : 'Todos os sinais estão dentro dos limites.'}</p></Panel>
           <SignalChart t={t} signal={signal ?? (t.bench ? 'idc' : 'motor_temp')} />
         </div>
       )}
