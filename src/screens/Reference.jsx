@@ -24,7 +24,7 @@ export function Sinais({ t }) {
         <Panel title="Saúde do barramento RS485" note="Estado, idade e erros">
           <div className="kv node-health">{nodeRows(t.busHealth).map(([a, b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}</div>
         </Panel>
-        <Panel title="Caminho do dado" note="Da placa à tela">
+        <Panel title="Caminho do dado" note="Sequência de cada amostra">
           <ol className="path">{DATA_PATH.map(([a, b]) => <li key={a}><strong>{a}</strong><span>{b}</span></li>)}</ol>
         </Panel>
         <Panel title="Legenda">

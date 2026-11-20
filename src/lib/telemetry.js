@@ -1,4 +1,4 @@
-import { ALERT_BY_CODE, FAULTS, LIMITS } from '../data/catalog'
+import { ALERT_BY_CODE, FAULTS, LIMITS, STRATEGIES, STRATEGY_TARGETS } from '../data/catalog'
 
 export const NA = '--'
 export const has = (v) => v !== null && v !== undefined && Number.isFinite(Number(v))
@@ -22,15 +22,27 @@ export function rankedAlerts(sample) {
 export const describe = (alert) => (alert ? ALERT_BY_CODE[alert.code] ?? null : null)
 export const faultInfo = (id) => FAULTS.find((f) => f.id === id) ?? null
 
-export function pilotCommand(sample, stale) {
+export const strategyMode = (sample, strategy) => sample?.drive_strategy ?? strategy?.mode ?? null
+export const strategyLabel = (id) => STRATEGIES.find((s) => s.id === id)?.label ?? 'indisponível'
+
+export function speedMarks(mode, targets = STRATEGY_TARGETS) {
+  if (mode === 'cruise') return [[targets.cruise_kmh, `${br(targets.cruise_kmh, 0)} km/h`]]
+  return [[targets.coast_kmh, br(targets.coast_kmh, 0)], [targets.burn_kmh, `${br(targets.burn_kmh, 0)} km/h`]]
+}
+
+export function pilotCommand(sample, stale, strategy) {
   if (!sample || stale) return { title: 'SEM DADOS', note: 'mantenha o ritmo', tone: 'alert' }
   const order = rankedAlerts(sample).map(describe).find((d) => d?.pilot)
   if (order) return { title: order.pilot, note: order.pilotNote, tone: 'alert' }
   if (sample.data_source === 'bench') return { title: 'BANCADA', note: 'velocidade indisponível', tone: 'coast' }
   if (sample.inv_state === 'precharge') return { title: 'AGUARDE', note: 'pré-carga', tone: 'coast' }
   if (sample.inv_state === 'wait_dead_man') return { title: 'SEGURE O HOMEM-MORTO', note: 'no volante', tone: 'coast' }
-  if (sample.drive_phase === 'burn') return { title: 'ACELERE', note: 'até 33 km/h', tone: 'burn' }
-  if (sample.drive_phase === 'coast') return { title: 'SOLTE', note: 'religar em 16 km/h', tone: 'coast' }
+  const targets = strategy?.targets ?? STRATEGY_TARGETS
+  if (sample.drive_phase !== 'idle' && strategyMode(sample, strategy) === 'cruise') {
+    return { title: 'MANTENHA', note: `cerca de ${br(targets.cruise_kmh, 0)} km/h`, tone: sample.drive_phase === 'burn' ? 'burn' : 'coast' }
+  }
+  if (sample.drive_phase === 'burn') return { title: 'ACELERE', note: `até ${br(targets.burn_kmh, 0)} km/h`, tone: 'burn' }
+  if (sample.drive_phase === 'coast') return { title: 'SOLTE', note: `religar em ${br(targets.coast_kmh, 0)} km/h`, tone: 'coast' }
   return { title: 'AGUARDE', note: 'largada', tone: 'coast' }
 }
 
@@ -69,8 +81,8 @@ const SOURCES = {
   demo: { ...SIMULATED, feed: 'Ao vivo', line: `Demo local no navegador. ${NOT_MEASURED}` },
   modbus: { ...MEASURED, feed: 'Veículo', line: `Medido pelo barramento RS485. ${MODEL_NOTE}` },
   modbus_emulated: { ...EMULATED, feed: 'Emulador', line: `Nós Modbus emulados. ${NOT_MEASURED} ${MODEL_NOTE}` },
-  bench: { ...MEASURED, short: 'BANCADA', feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: 'Medido na bancada: tensão, corrente, potência e energia. Demais valores indisponíveis.' },
-  bench_emulated: { ...EMULATED, feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: `Bancada emulada: tensão, corrente, potência e energia. ${NOT_MEASURED}` },
+  bench: { ...MEASURED, short: 'BANCADA', feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: 'A bancada mede tensão, corrente, potência e energia. Os demais valores ficam indisponíveis.' },
+  bench_emulated: { ...EMULATED, feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: `A bancada emulada gera tensão, corrente, potência e energia. ${NOT_MEASURED}` },
   lora_radio: { ...MEASURED, feed: 'Veículo', line: 'Recebido pelo rádio LoRa do carro.' },
   lora_emulated: { ...EMULATED, feed: 'Emulador', line: `Rádio LoRa emulado. ${NOT_MEASURED}` },
 }

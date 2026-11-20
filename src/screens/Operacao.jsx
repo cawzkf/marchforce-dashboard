@@ -1,5 +1,5 @@
-import { EFFICIENCY_CASES, INVERTER_STATES, LIMITS, MOTOR, PACK } from '../data/catalog'
-import { br, describe, fieldLabel, has, kmh, rankedAlerts } from '../lib/telemetry'
+import { EFFICIENCY_CASES, INVERTER_STATES, LIMITS, MOTOR, PACK, STRATEGIES, STRATEGY_MIN_M } from '../data/catalog'
+import { br, describe, fieldLabel, has, kmh, rankedAlerts, speedMarks, strategyLabel, strategyMode } from '../lib/telemetry'
 import { Bar, burnBands, cellPct, cellSpread, Chart, HealthStrip, Panel, Stat } from '../ui/kit'
 
 const WINDOW_S = 145
@@ -109,13 +109,14 @@ function Trends({ t }) {
   const now = t.latest?.timestamp ?? 0
   const x = [now - WINDOW_S, now]
   const bands = burnBands(t.series)
+  const marks = speedMarks(strategyMode(t.latest, t.strategy), t.strategy.targets)
   const speed = t.series.map((p) => [p.timestamp, kmh(p.velocity)])
   const power = t.series.map((p) => [p.timestamp, p.electrical_power])
   const labels = [[now - WINDOW_S, '145 s atrás'], [now - 72, '72 s'], [now - 10, 'agora']]
   return (
     <Panel title="Velocidade e potência" note="Janela de 145 s" actions={<Playback t={t} />} className="span-trends">
       <h3>{fieldLabel(t.latest, 'Velocidade', 'velocity')}</h3>
-      <Chart height={150} label="Velocidade" x={x} y={[0, 40]} left={70} bands={bands} grids={[[16, '16'], [33, '33 km/h']]}
+      <Chart height={150} label="Velocidade" x={x} y={[0, 40]} left={70} bands={bands} grids={marks}
         lines={[{ name: 'velocidade', points: speed }]} dots={[[now, kmh(t.latest?.velocity)]]} xLabels={labels} />
       <h3>{fieldLabel(t.latest, 'Potência elétrica no barramento', 'electrical_power')}</h3>
       <Chart height={128} label="Potência elétrica" x={x} y={[0, 620]} left={70} bands={bands} grids={[[200, '200'], [400, '400 W']]}
@@ -124,19 +125,78 @@ function Trends({ t }) {
   )
 }
 
+function AlertCodes({ alerts }) {
+  return (
+    <div className="alert-list">
+      {alerts.length === 0 && <span>Nenhum alerta ativo</span>}
+      {alerts.slice(0, 3).map((a) => <span key={a.code} className={a.severity}>{a.code}</span>)}
+    </div>
+  )
+}
+
+function strategyLine(s, mode, settling, targets) {
+  if (settling) {
+    const band = mode === 'cruise' ? `${br(targets.cruise_kmh, 0)} km/h` : `a faixa de ${br(targets.coast_kmh, 0)} a ${br(targets.burn_kmh, 0)} km/h`
+    return `O carro está indo para ${band}. A medição começa quando a velocidade estabiliza.`
+  }
+  if (!has(s?.strategy_km_per_kwh)) return `Trecho com ${br(s?.strategy_distance, 0)} m. O valor aparece a partir de ${STRATEGY_MIN_M} m.`
+  return mode === 'burn_coast' ? 'Conta só este trecho. Oscila com a fase do ciclo.' : 'Conta só este trecho, desde a troca de estratégia.'
+}
+
+function StrategyEfficiency({ t, alerts }) {
+  const s = t.latest
+  const { strategy } = t
+  const mode = strategy.mode ?? s?.drive_strategy ?? 'burn_coast'
+  const settling = s?.drive_strategy !== mode
+  const other = STRATEGIES.find((x) => x.id !== mode) ?? STRATEGIES[0]
+  const otherValue = s?.strategy_results?.[other.id]
+  return (
+    <>
+      <div className="seg strategy-seg" role="group" aria-label="Estratégia de condução">
+        {STRATEGIES.map((x) => (
+          <button type="button" key={x.id} className={mode === x.id ? 'on' : ''} disabled={!strategy.available} title={x.note} onClick={() => strategy.select(x.id)}>{x.label}</button>
+        ))}
+      </div>
+      {!strategy.available && strategy.error && <p className="small muted">{strategy.error}</p>}
+      <div className="row-between strategy-values">
+        <div className="strategy-main">
+          <strong className="hero-number">{!settling && has(s?.strategy_km_per_kwh) ? br(s.strategy_km_per_kwh, 0) : '--'}</strong>
+          <span className="muted small">km/kWh · {strategyLabel(mode)}</span>
+        </div>
+        <div className="stat strategy-other">
+          <span className="muted small">{other.label}</span>
+          <strong>{has(otherValue) ? br(otherValue, 0) : '--'}<small> km/kWh</small></strong>
+          <span className="muted small">{has(otherValue) ? 'último trecho medido' : 'ainda sem trecho medido'}</span>
+        </div>
+      </div>
+      <p className="small">{strategyLine(s, mode, settling, strategy.targets)}</p>
+      <div className="row-between"><span className="muted small">Alertas ativos</span><AlertCodes alerts={alerts} /></div>
+    </>
+  )
+}
+
 function Efficiency({ t }) {
   const alerts = rankedAlerts(t.latest)
   const complete = t.latest?.km_per_kwh_complete !== false
+  if (t.mode === 'sim' && (t.strategy.available || t.latest?.drive_strategy)) {
+    return (
+      <Panel title="Eficiência e alertas" note="km/kWh por estratégia" className="span-eff">
+        <StrategyEfficiency t={t} alerts={alerts} />
+        <p className="muted small">Referências do modelo. As condições são diferentes.</p>
+        <div className="ref-list">
+          {EFFICIENCY_CASES.map((c) => <div key={c.name}><span>{c.name}</span><strong>{c.short}</strong></div>)}
+        </div>
+        {alerts[0] && <p className="small">{describe(alerts[0])?.message}</p>}
+      </Panel>
+    )
+  }
   return (
     <Panel title="Eficiência e alertas" note={fieldLabel(t.latest, 'km/kWh parcial', 'km_per_kwh')} className="span-eff">
       <div className="row-between">
         <strong className="hero-number">{complete && t.latest?.km_per_kwh > 0 ? br(t.latest.km_per_kwh, 0) : '--'}</strong>
-        <div className="alert-list">
-          {alerts.length === 0 && <span>Nenhum alerta ativo</span>}
-          {alerts.slice(0, 3).map((a) => <span key={a.code} className={a.severity}>{a.code}</span>)}
-        </div>
+        <AlertCodes alerts={alerts} />
       </div>
-      <p className="small">{complete ? 'Oscila com a fase do ciclo até o fim da tentativa.' : 'Indisponível: sessão retomada em movimento ou com amostras perdidas.'}</p>
+      <p className="small">{complete ? 'Oscila com a fase do ciclo até o fim da tentativa.' : 'Indisponível porque a sessão foi retomada em movimento ou perdeu amostras.'}</p>
       <p className="muted small">Referências do modelo. As condições são diferentes.</p>
       <div className="ref-list">
         {EFFICIENCY_CASES.map((c) => <div key={c.name}><span>{c.name}</span><strong>{c.short}</strong></div>)}

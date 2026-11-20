@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FAULT_MAX_S, FAULTS } from '../data/catalog'
+import { FAULT_MAX_S, FAULTS, STRATEGY_TARGETS } from '../data/catalog'
 import { rankedAlerts, sourceInfo } from '../lib/telemetry'
 import { createDemoEngine, staleAlert } from './demoEngine'
 
@@ -13,6 +13,7 @@ const DEMO_DT = 0.1
 const STATUS_POLL_MS = 1000
 const NO_STATUS = { available: false, age_s: null, data: null }
 const DEMO_RADIO = { rssi: -92, snr: 7.5 }
+const NO_STRATEGY_STATE = { available: false, mode: null, active: null, targets: STRATEGY_TARGETS }
 
 function emptyStore() {
   return { latest: null, series: [], receivedAt: null, startTs: null, events: [], active: new Set(), frames: [], frameAt: null, frameSession: null, lastSeq: 0 }
@@ -252,6 +253,58 @@ function useLiveFault(enabled) {
   return { available: state.available, active: state.case, elapsed: state.elapsed_s, error, start, clear }
 }
 
+function useLiveStrategy(enabled) {
+  const [state, setState] = useState(NO_STRATEGY_STATE)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!enabled) return undefined
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/strategy')
+        if (!res.ok) throw new Error(String(res.status))
+        const data = await res.json()
+        if (!cancelled) {
+          setState(data)
+          setError(null)
+        }
+      } catch {
+        if (!cancelled) {
+          setState(NO_STRATEGY_STATE)
+          setError('API indisponível')
+        }
+      }
+    }
+    poll()
+    const id = setInterval(poll, STATUS_POLL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [enabled])
+
+  const select = useCallback(async (mode) => {
+    try {
+      const res = await fetch('/api/strategy', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      })
+      if (res.status === 409) setError('Disponível só com a fonte simulador')
+      else if (!res.ok) setError('Comando recusado pela API')
+      else {
+        setState(await res.json())
+        setError(null)
+      }
+    } catch {
+      setError('API indisponível')
+    }
+  }, [])
+
+  return { available: state.available, mode: state.mode, active: state.active, targets: state.targets ?? STRATEGY_TARGETS, error, select }
+}
+
 function useBench(enabled) {
   const [state, setState] = useState({ online: false, seen: false, sensor_ok: false, device: null, age_s: null })
   useEffect(() => {
@@ -316,11 +369,13 @@ function demoBus(feed) {
 }
 
 const NO_FAULT = { available: false, active: null, elapsed: null, error: 'Falha ao vivo só existe no simulador', start: async () => {}, clear: async () => {} }
+const NO_STRATEGY = { ...NO_STRATEGY_STATE, error: 'Troca de estratégia só existe no simulador', select: async () => {} }
 
 export function useTelemetry(mode) {
   const demo = mode === 'demo'
   const bench = mode === 'bench'
   const liveFault = useLiveFault(mode === 'sim')
+  const liveStrategy = useLiveStrategy(mode === 'sim')
   const demoFault = useDemoFault(demo)
   const benchState = useBench(!demo)
   const liveLink = useStatus('/api/lora/link', mode === 'sim')
@@ -378,6 +433,7 @@ export function useTelemetry(mode) {
   const source = sourceInfo(feed.latest?.data_source)
   const link = demo ? demoLink(feed) : liveLink
   const busHealth = demo ? demoBus(feed) : liveBus
+  const strategy = mode === 'sim' ? liveStrategy : NO_STRATEGY
 
-  return { ...feed, mode, demo, bench, benchState, fault, stale, injected, faults: FAULTS, playback, setPlayback, link, busHealth, source }
+  return { ...feed, mode, demo, bench, benchState, fault, stale, injected, faults: FAULTS, playback, setPlayback, link, busHealth, source, strategy }
 }
