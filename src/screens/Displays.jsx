@@ -8,7 +8,7 @@ const frameBatteryLabel = (frame) => (readsHardwarePath(sourceInfo(frame?.data_s
 
 export function PilotDisplay({ t }) {
   const s = t.latest
-  const cmd = pilotCommand(s, t.stale)
+  const cmd = pilotCommand(s, t.stale, t.strategy)
   const speed = t.stale ? null : kmh(s?.velocity)
   const info = rankedAlerts(s).map(describe).find((d) => d?.signal && LIMITS[d.signal])
   const alertTop = cmd.tone === 'alert'

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Operação: seletor de estratégia com `Velocidade constante` e `Burn and coast`, enviado por `PUT /api/strategy`.
+- Operação: km/kWh do trecho da estratégia atual em destaque e último valor da outra estratégia ao lado, vindos de `strategy_km_per_kwh` e `strategy_results`.
+- Piloto: com velocidade constante, a ordem passa a ser `MANTENHA` cerca de 25 km/h. As velocidades alvo vêm de `/api/strategy`.
+- Gráfico de velocidade marca a velocidade alvo da estratégia ativa.
+- Textos de painéis, procedimentos e fontes reescritos em frases afirmativas curtas.
+- Requer a branch `feat/runtime-drive-strategy` do gêmeo.
+
 ## v2.0.3
 
 - Os rótulos seguem `data_source` enviado pelo backend: `DADOS SIMULADOS`, `DADOS MEDIDOS`, `DADOS EMULADOS` ou `origem indisponível`.

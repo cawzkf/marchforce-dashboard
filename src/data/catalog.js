@@ -9,6 +9,12 @@ export const LIMITS = {
 export const PACK = { cells: 15, capacityAh: 6, energyWh: 288, cellMin: 2.5, cellMax: 3.65 }
 export const RACE = { laps: 10, lapLength: 853, durationS: 1500 }
 export const MOTOR = { nominalTorque: 0.627, peakTorque: 1.217, noLoadRpm: 4241, rpm16: 1916, rpm33: 3952 }
+export const STRATEGY_TARGETS = { cruise_kmh: 25, burn_kmh: 33, coast_kmh: 16 }
+export const STRATEGY_MIN_M = 200
+export const STRATEGIES = [
+  { id: 'cruise', label: 'Velocidade constante', note: 'Motor sempre ligado na mesma velocidade.' },
+  { id: 'burn_coast', label: 'Burn and coast', note: 'Motor liga e desliga entre duas velocidades.' },
+]
 
 const PROCEDURES = {
   soc: ['Levar o carro ao box.', 'Apertar o E-STOP.', 'Conectar o carregador 15S.', 'Registrar o estado de carga na sessão.'],
