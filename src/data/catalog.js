@@ -16,7 +16,7 @@ const PROCEDURES = {
   current: ['Apertar o E-STOP.', 'Conferir fusível de 15 A e estado do BMS.', 'Girar a roda à mão e verificar arrasto.', 'Conferir o limite de corrente do inversor.'],
   speed: ['Parar o carro.', 'Conferir o sensor Hall da roda.', 'Comparar com a velocidade do GNSS.', 'Conferir os freios.'],
   battery: ['Apertar o E-STOP.', 'Afastar a equipe do pack.', 'Medir o pack com termômetro externo.', 'Religar só abaixo de 45 °C e com a causa registrada.'],
-  motor: ['Apertar o E-STOP e aguardar o elo CC descarregar.', 'Medir a carcaça do motor com termômetro externo.', 'Carcaça fria: conferir a sonda DS18B20 e o 1-Wire.', 'Carcaça quente: conferir fixação, fluxo de ar e atrito.', 'Registrar a causa e religar só abaixo de 90 °C.'],
+  motor: ['Apertar o E-STOP e aguardar o elo CC descarregar.', 'Medir a carcaça do motor com termômetro externo.', 'Com a carcaça fria, conferir a sonda DS18B20 e o 1-Wire.', 'Com a carcaça quente, conferir fixação, fluxo de ar e atrito.', 'Registrar a causa e religar só abaixo de 90 °C.'],
   inverter: ['Apertar o E-STOP.', 'Conferir ventilação e fixação do inversor.', 'Conferir o sensor de temperatura.', 'Religar só abaixo de 70 °C.'],
   data: ['Conferir sensores e cabos do nó.', 'Reiniciar a aquisição.', 'Confirmar leituras válidas antes de sair.'],
   comm: ['Conferir a rede e o computador de bordo.', 'Reiniciar a aquisição.', 'Confirmar que as amostras voltaram.'],
@@ -45,7 +45,7 @@ export const ALERTS = [
   row('E-CTRL-OVERTEMP', 'error', 'Inversor a partir de 85 °C', 'Sobretemperatura no controlador', 'SOLTE E PARE', 'inversor no limite', 'Apertar o E-STOP e aguardar esfriar', 'Ir até o carro', 'inverter', 'controller_temp'),
   row('E-DATA-INVALID', 'error', 'Leitura NaN ou infinita', 'Leitura inválida no processamento', 'SEM DADOS', 'mantenha o ritmo', 'Conferir sensores e cabos do nó', 'Não confiar nos valores da tela', 'data', null),
   row('E-COMM-STALE', 'error', '3 s sem amostra na API', 'Telemetria interrompida', 'SEM DADOS', 'mantenha o ritmo', 'Conferir rede e computador de bordo', 'Confirmar o carro visualmente', 'comm', null),
-  row('E-PERSIST', 'error', 'Falha ao gravar no banco', 'Falha ao gravar a amostra no banco', null, null, 'Sem ação', 'Corrigir o banco: o histórico está parado', 'storage', null),
+  row('E-PERSIST', 'error', 'Falha ao gravar no banco', 'Falha ao gravar a amostra no banco', null, null, 'Sem ação', 'Corrigir o banco. O histórico parou de gravar', 'storage', null),
   row('E-MQTT', 'error', 'API ou processamento sem broker, em até 7,5 s', 'Falha de comunicação com o broker MQTT', null, null, 'Conferir o broker MQTT', 'Confirmar o carro visualmente', 'broker', null),
 ]
 

@@ -69,8 +69,8 @@ const SOURCES = {
   demo: { ...SIMULATED, feed: 'Ao vivo', line: `Demo local no navegador. ${NOT_MEASURED}` },
   modbus: { ...MEASURED, feed: 'Veículo', line: `Medido pelo barramento RS485. ${MODEL_NOTE}` },
   modbus_emulated: { ...EMULATED, feed: 'Emulador', line: `Nós Modbus emulados. ${NOT_MEASURED} ${MODEL_NOTE}` },
-  bench: { ...MEASURED, short: 'BANCADA', feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: 'Medido na bancada: tensão, corrente, potência e energia. Demais valores indisponíveis.' },
-  bench_emulated: { ...EMULATED, feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: `Bancada emulada: tensão, corrente, potência e energia. ${NOT_MEASURED}` },
+  bench: { ...MEASURED, short: 'BANCADA', feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: 'A bancada mede tensão, corrente, potência e energia. Os demais valores ficam indisponíveis.' },
+  bench_emulated: { ...EMULATED, feed: 'Ao vivo', signal: 'Sem leitura na bancada', note: 'Sem leitura na bancada', line: `A bancada emulada gera tensão, corrente, potência e energia. ${NOT_MEASURED}` },
   lora_radio: { ...MEASURED, feed: 'Veículo', line: 'Recebido pelo rádio LoRa do carro.' },
   lora_emulated: { ...EMULATED, feed: 'Emulador', line: `Rádio LoRa emulado. ${NOT_MEASURED}` },
 }
