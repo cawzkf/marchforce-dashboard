@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased
+## v2.1.0
 
 - Operação: seletor de estratégia com `Velocidade constante` e `Burn and coast`, enviado por `PUT /api/strategy`.
 - Operação: km/kWh do trecho da estratégia atual em destaque e último valor da outra estratégia ao lado, vindos de `strategy_km_per_kwh` e `strategy_results`.
 - Piloto: com velocidade constante, a ordem passa a ser `MANTENHA` cerca de 25 km/h. As velocidades alvo vêm de `/api/strategy`.
 - Gráfico de velocidade marca a velocidade alvo da estratégia ativa.
 - Textos de painéis, procedimentos e fontes reescritos em frases afirmativas curtas.
-- Requer a branch `feat/runtime-drive-strategy` do gêmeo.
+- Aba com o ícone MF inclinado sem fundo e o título `Telemetria`.
+- Requer o gêmeo v0.7.0 ou mais novo.
 
 ## v2.0.3
 
